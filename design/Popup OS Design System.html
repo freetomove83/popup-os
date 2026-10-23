@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Popup OS — 브랜드 · 토큰 · 컴포넌트 · 화면 시안</title>
+<link rel="stylesheet" href="tokens.css" />
+<script src="https://cdn.tailwindcss.com/3.4.16"></script>
+<script src="tw-config.js"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/lucide-react@0.460.0/dist/umd/lucide-react.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" src="design_canvas.jsx"></script>
+<script type="text/babel" src="ui.jsx"></script>
+<script type="text/babel" src="admin-shell.jsx"></script>
+<script type="text/babel" src="admin-screens.jsx"></script>
+<script type="text/babel" src="staff-screens.jsx"></script>
+<script type="text/babel" src="sheets.jsx"></script>
+<script type="text/babel" src="handoff.jsx"></script>
+<script type="text/babel">
+const { useEffect, useState } = React;
+
+function useFile(path) {
+  const [t, setT] = useState('불러오는 중…');
+  useEffect(() => { fetch(path).then((r) => r.text()).then(setT).catch(() => setT('// ' + path + ' 를 열어 확인하세요')); }, [path]);
+  return t;
+}
+
+const ADMIN = [
+  ['dashboard', '대시보드', ScreenDashboard, { d: 720, n: 720, s: 710 }],
+  ['project', '프로젝트·포지션', ScreenProject, { d: 600, n: 600, s: 600 }],
+  ['screen', '지원자 스크리닝', ScreenScreening, { d: 900, n: 1200, s: 600 }],
+  ['contract', '전자계약', ScreenContract, { d: 740, n: 740, s: 710 }],
+  ['attend', '출퇴근 현황', ScreenAttend, { d: 760, n: 760, s: 680 }],
+  ['settle', '정산·급여', ScreenSettle, { d: 720, n: 720, s: 710 }],
+];
+const STAFF = [
+  ['s-contract', 'S1 계약 서명', StaffContract],
+  ['s-checkin', 'S2 출근 체크인', StaffCheckin],
+  ['s-settle', 'S3 정산 내역', StaffSettle],
+];
+const ST_LABEL = { empty: '빈 상태', loading: '로딩', error: '에러' };
+
+function App() {
+  const css = useFile('tokens/globals.css');
+  const ts = useFile('tokens/tailwind.config.ts');
+  return (
+    <DesignCanvas>
+      <DCSection id="brand" title="01 · 브랜드 시트" subtitle="마크 3안 · 팔레트 · 대안 팔레트 · 타이포 · 로고 규칙">
+        <DCArtboard id="marks" label="마크 & 로고 규칙" width={1280} height={960}><BrandMarks /></DCArtboard>
+        <DCArtboard id="palette" label="팔레트" width={1280} height={880}><BrandPalette /></DCArtboard>
+        <DCArtboard id="alt" label="대안 팔레트" width={1280} height={600}><AltPalette /></DCArtboard>
+        <DCArtboard id="type" label="타이포 스케일" width={1280} height={1060}><TypeScale /></DCArtboard>
+      </DCSection>
+
+      <DCSection id="tokens" title="02 · 토큰 확정본" subtitle="tokens/globals.css → tokens/tailwind.config.ts · shadcn 시맨틱 이름 유지">
+        <DCArtboard id="tok" label="Radius · Shadow · Spacing · 대비표" width={1280} height={1000}><TokenSheet /></DCArtboard>
+        <DCArtboard id="css" label="globals.css" width={820} height={2120}><CodeSheet title="CSS 변수 (HSL 채널)" file="tokens/globals.css" code={css} w={820} h={2120} /></DCArtboard>
+        <DCArtboard id="ts" label="tailwind.config.ts" width={820} height={1820}><CodeSheet title="theme.extend" file="tokens/tailwind.config.ts" code={ts} w={820} h={1820} /></DCArtboard>
+      </DCSection>
+
+      <DCSection id="comp" title="03 · 컴포넌트 시안" subtitle="§4 13종 · default / hover / focus / disabled / loading">
+        <DCArtboard id="btn" label="Button" width={1280} height={880}><CompButtons /></DCArtboard>
+        <DCArtboard id="badge" label="Badge · Tag · Chip · Dot" width={1280} height={640}><CompBadges /></DCArtboard>
+        <DCArtboard id="card" label="Card · KPI · Table · Note · Progress · Avatar" width={1280} height={820}><CompCards /></DCArtboard>
+        <DCArtboard id="form" label="Input · Select · Checkbox · Toast · Drawer" width={1280} height={900}><CompForms /></DCArtboard>
+      </DCSection>
+
+      {ADMIN.map(([k, name, C, h], i) => (
+        <DCSection key={k} id={'a-' + k} title={`04 · 관리자 ${i + 1}. ${name}`} subtitle="1280 · 1024 · 빈 상태 · 로딩 · 에러">
+          <DCArtboard id={k + '-1280'} label="1280" width={1280} height={h.d}><C w={1280} /></DCArtboard>
+          <DCArtboard id={k + '-1024'} label="1024 (레일 사이드바)" width={1024} height={h.n}><C w={1024} /></DCArtboard>
+          {['empty', 'loading', 'error'].map((s) => (
+            <DCArtboard key={s} id={k + '-' + s} label={'1280 · ' + ST_LABEL[s]} width={1280} height={h.s}><C w={1280} state={s} /></DCArtboard>
+          ))}
+        </DCSection>
+      ))}
+
+      <DCSection id="staff" title="04 · 스태프 앱 (390)" subtitle="계약 서명 · 출근 체크인 · 정산 내역 — 기본 / 빈 / 로딩 / 에러">
+        {STAFF.flatMap(([k, name, C]) => [
+          <DCArtboard key={k} id={k} label={name} width={390} height={844}><C /></DCArtboard>,
+          ...['empty', 'loading', 'error'].map((s) => <DCArtboard key={k + s} id={k + '-' + s} label={name + ' · ' + ST_LABEL[s]} width={390} height={844}><C state={s} /></DCArtboard>),
+        ])}
+      </DCSection>
+
+      <DCSection id="handoff" title="05 · 핸드오프 노트" subtitle="화면→컴포넌트 매핑 · 재사용 규칙 · 접근성 체크">
+        <DCArtboard id="ho" label="Handoff" width={1280} height={1120}><HandoffSheet /></DCArtboard>
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

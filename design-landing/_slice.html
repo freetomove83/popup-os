@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>slice</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
+<link rel="stylesheet" href="lp.css" />
+<style>body{margin:0;background:#fff;overflow-x:hidden}</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
+<script type="text/babel" src="lp-base.jsx"></script>
+<script type="text/babel" src="lp-sections.jsx"></script>
+<script type="text/babel">
+const y = Number(new URLSearchParams(location.search).get('y') || 0);
+const root = document.getElementById('root');
+ReactDOM.createRoot(root).render(
+  <div style={{ width: 1440, overflow: 'hidden' }}>
+    <div style={{ marginTop: -y }}>
+      <FullPage />
+    </div>
+  </div>
+);
+</script>
+</body>
+</html>

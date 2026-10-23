@@ -1,0 +1,21 @@
+# dependencies
+node_modules/
+
+# build output (Vite → Laravel public)
+dist/
+backend/public/build/
+
+# verification screenshots (regenerable)
+.shots/
+
+# env / secrets
+.env
+.env.*
+!.env.example
+
+# logs / OS / editor
+*.log
+.DS_Store
+Thumbs.db
+.vite/
+*.local

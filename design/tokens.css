@@ -1,0 +1,90 @@
+/* 시안 미리보기 전용: globals.css의 :root 변수 + base (Play CDN은 @apply 미처리) */
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+:root {
+
+  /* ── shadcn semantic (Tailwind: bg-background, text-foreground …) ── */
+  --background: 226.7 36% 95.1%;              /* #EEF0F7 · 앱 배경 (--bg) */
+  --foreground: 224 40.5% 7.3%;               /* #0B0F1A · 최상위 텍스트 (--ink) */
+  --card: 0 0% 100%;                          /* #FFFFFF · 카드 표면 (--surface) */
+  --card-foreground: 224 40.5% 7.3%;          /* #0B0F1A */
+  --popover: 0 0% 100%;                       /* #FFFFFF */
+  --popover-foreground: 224 40.5% 7.3%;       /* #0B0F1A */
+  --primary: 246.9 74.3% 63.3%;               /* #6C5CE7 · Electric Violet · 흰 텍스트 4.86:1 */
+  --primary-foreground: 0 0% 100%;            /* #FFFFFF */
+  --secondary: 249 100% 96.1%;                /* #EEEBFF · soft 버튼 배경 (--brand-50) */
+  --secondary-foreground: 246.6 53.3% 47.1%;  /* #4638B8 · brand-700 · 7.13:1 on brand-50 */
+  --muted: 228 38.5% 97.5%;                   /* #F6F7FB · 보조 표면 (--surface-2) */
+  --muted-foreground: 217.8 12.6% 42.2%;      /* #5E6879 · 보조 텍스트 · 정제값(기존 #6B7688은 bg 위 4.03 ✗) → 4.94 on bg */
+  --accent: 228 38.5% 97.5%;                  /* #F6F7FB · shadcn hover 배경 (Pop Amber 아님! → pop-*) */
+  --accent-foreground: 224 40.5% 7.3%;        /* #0B0F1A */
+  --destructive: 4.2 74.3% 48.8%;             /* #D92D20 · danger-600 · 흰 텍스트 4.83:1 */
+  --destructive-foreground: 0 0% 100%;        /* #FFFFFF */
+  --border: 226.2 31.7% 92%;                  /* #E4E7F1 · --line */
+  --input: 225.7 31.3% 86.9%;                 /* #D3D8E8 · --line-2 · 입력 보더 */
+  --ring: 246.9 74.3% 63.3%;                  /* #6C5CE7 · focus ring */
+
+  /* ── Brand ── */
+  --brand: 246.9 74.3% 63.3%;                 /* #6C5CE7 */
+  --brand-50: 249 100% 96.1%;                 /* #EEEBFF */
+  --brand-100: 249.5 100% 92.5%;              /* #DFD9FF */
+  --brand-600: 247.2 63.2% 56.3%;             /* #5A49D6 · hover · 텍스트 6.25:1 */
+  --brand-700: 246.6 53.3% 47.1%;             /* #4638B8 · soft 위 텍스트 */
+
+  /* ── Pop Amber (CTA·강조) — 흰 텍스트 금지 ── */
+  --pop: 34.6 100% 55.5%;                     /* #FF9F1C · ink 텍스트 9.32:1 */
+  --pop-50: 36.4 100% 94.5%;                  /* #FFF4E3 */
+  --pop-700: 32 87.3% 30.8%;                  /* #93530A · pop-50 위 텍스트 5.54:1 */
+
+  /* ── Neutral ── */
+  --ink: 224 40.5% 7.3%;                      /* #0B0F1A */
+  --ink-2: 220.8 32.5% 15.1%;                 /* #1A2233 */
+  --ink-3: 217.2 19.7% 28.8%;                 /* #3B4658 · 본문 보조 · 8.37:1 on bg */
+  --subtle: 217.8 15.1% 64.9%;                /* #98A2B3 · 아이콘·placeholder·disabled 전용 (텍스트 금지 2.58:1) */
+  --surface: 0 0% 100%;                       /* #FFFFFF */
+  --surface-2: 228 38.5% 97.5%;               /* #F6F7FB */
+  --surface-3: 228 35.7% 94.5%;               /* #ECEEF6 */
+  --line: 226.2 31.7% 92%;                    /* #E4E7F1 */
+  --line-2: 225.7 31.3% 86.9%;                /* #D3D8E8 */
+
+  /* ── Semantic: 500=점·아이콘·진행바, 700=텍스트, 50=배경 ── */
+  --success: 152 82.1% 39.4%;                 /* #12B76A · --green (텍스트 금지 2.62) */
+  --success-50: 150 56.3% 93.7%;              /* #E6F8EF */
+  --success-200: 143.8 68% 80.4%;             /* #ABEFC6 · 보더 */
+  --success-700: 154.8 90.3% 24.3%;           /* #067647 · 텍스트 5.16 on 50 / 버튼 배경 흰 텍스트 5.69 */
+  --warning: 34 93.7% 50.2%;                  /* #F79009 · --amber */
+  --warning-50: 34.6 92.9% 94.5%;             /* #FEF3E4 */
+  --warning-200: 44.1 98.3% 76.7%;            /* #FEDF89 */
+  --warning-700: 21.8 91.5% 37.1%;            /* #B54708 · 4.95 on 50 (기존 #B56A00은 3.81 ✗) */
+  --danger: 3.9 86% 58%;                      /* #F04438 · --red */
+  --danger-50: 3.2 90.5% 95.9%;               /* #FEECEB */
+  --danger-200: 3.5 96.3% 89.4%;              /* #FECDCA */
+  --danger-700: 4.2 76.5% 40%;                /* #B42318 · 5.76 on 50 */
+  --info: 211.2 95.3% 58%;                    /* #2E90FA · --blue */
+  --info-50: 214.3 100% 95.9%;                /* #EAF3FF */
+  --info-200: 206.5 100% 84.9%;               /* #B2DDFF */
+  --info-700: 218 80.3% 45.9%;                /* #175CD3 · 5.35 on 50 */
+
+  /* ── Sidebar (관리자 다크 — 유일한 다크 영역) ── */
+  --sidebar: 230.8 26.5% 9.6%;                /* #12141F */
+  --sidebar-foreground: 224 21.4% 72.5%;      /* #AAB2C8 · 8.65:1 */
+  --sidebar-muted: 223.6 16.4% 60.6%;         /* #8A93AB · 섹션 라벨 5.97:1 (기존 #5B6379는 3.06 ✗) */
+  --sidebar-accent: 227 29.9% 15.1%;          /* #1B2032 · hover */
+  --sidebar-accent-foreground: 0 0% 100%;     /* #FFFFFF */
+  --sidebar-primary: 246.9 74.3% 63.3%;       /* #6C5CE7 · active */
+  --sidebar-primary-foreground: 0 0% 100%;    /* #FFFFFF */
+  --sidebar-border: 225.7 23.1% 17.8%;        /* #232838 */
+  --sidebar-ring: 246.9 74.3% 63.3%;          /* #6C5CE7 */
+
+  /* ── Shape ── */
+  --radius: 10px;          /* 버튼·입력 (rounded-lg) */
+  --radius-card: 16px;     /* 카드 (rounded-card / rounded-xl) */
+  --radius-chip: 7px;      /* 칩·배지 */
+  --radius-shell: 22px;    /* 앱 셸 */
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,system-ui,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  background:hsl(var(--background));color:hsl(var(--foreground));font-size:13.5px;line-height:1.55;-webkit-font-smoothing:antialiased}
+.tabular,td,[data-numeric]{font-variant-numeric:tabular-nums}
+@keyframes dot-pulse{0%{box-shadow:0 0 0 0 hsl(var(--success) / .5)}70%{box-shadow:0 0 0 7px hsl(var(--success) / 0)}100%{box-shadow:0 0 0 0 hsl(var(--success) / 0)}}
+@media (prefers-reduced-motion: reduce){.animate-dot-pulse,.animate-pulse,.animate-spin{animation:none!important}}
