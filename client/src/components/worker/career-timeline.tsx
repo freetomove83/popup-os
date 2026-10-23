@@ -169,7 +169,7 @@ export function AddCareerDrawer({ onAdd }: { onAdd: (record: WorkRecord) => void
             <Input
               value={project}
               onChange={e => setProject(e.target.value)}
-              placeholder="예: 무신사 스탠다드 성수 팝업"
+              placeholder="예: 어반핏 스탠다드 성수 팝업"
             />
           </Field>
           <Field label="주관사·브랜드">
@@ -177,7 +177,7 @@ export function AddCareerDrawer({ onAdd }: { onAdd: (record: WorkRecord) => void
               icon="Building2"
               value={organizer}
               onChange={e => setOrganizer(e.target.value)}
-              placeholder="예: 무신사"
+              placeholder="예: 어반핏"
             />
           </Field>
           <div className="grid grid-cols-2 gap-3">

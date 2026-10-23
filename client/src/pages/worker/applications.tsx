@@ -6,66 +6,26 @@ import { WorkerFrame, WorkerHeader } from "@/components/layout/worker-frame";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useScreenState } from "@/hooks/useScreenState";
+import type { AppStage, MyApplication } from "@/data/worker-app";
+import { useRequireWorker } from "@/hooks/useRequireWorker";
+import { useApi } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
-interface AppRow {
-  brand: string;
-  title: string;
-  role: string;
-  dates: string;
-  pay: string;
-  status: "지원 완료" | "승인됨" | "계약 완료" | "근무중" | "정산 완료";
-  action?: { label: string; href: string; icon: string };
-}
-
-const APPS: AppRow[] = [
-  {
-    brand: "무드랩",
-    title: "MOMENT POPUP 팝업 운영 스태프",
-    role: "운영 스태프(프로모터)",
-    dates: "10.05 ~ 10.07",
-    pay: "12,000원/시",
-    status: "근무중",
-    action: { label: "출근 체크인", href: "/worker/checkin", icon: "LogIn" },
-  },
-  {
-    brand: "뉴욕의 거장들",
-    title: "미술 전시 팝업 안내·운영",
-    role: "안내 스태프",
-    dates: "10.08 ~ 10.12",
-    pay: "12,500원/시",
-    status: "계약 완료",
-    action: { label: "근무 안내 보기", href: "/worker/checkin", icon: "CalendarCheck" },
-  },
-  {
-    brand: "퍼스트 라운딩",
-    title: "성수 팝업 물류·상하차",
-    role: "상하차",
-    dates: "10.05 ~ 10.06",
-    pay: "15,000원/시",
-    status: "승인됨",
-    action: { label: "계약 서명하기", href: "/worker/contract", icon: "PenLine" },
-  },
-  {
-    brand: "티랩(T-LAB)",
-    title: "신제품 체험 부스 운영",
-    role: "부스 운영",
-    dates: "10.15 ~ 10.18",
-    pay: "13,000원/시",
-    status: "지원 완료",
-  },
-];
-
-const STATUS_TONE: Record<AppRow["status"], "brand" | "success" | "warning" | "info" | "neutral"> = {
+const STATUS_TONE: Record<AppStage, "brand" | "success" | "warning" | "info" | "neutral" | "danger"> = {
   "지원 완료": "neutral",
+  미선정: "danger",
   승인됨: "info",
   "계약 완료": "brand",
   근무중: "success",
+  "근무 종료": "neutral",
   "정산 완료": "success",
 };
 
 export default function WorkerApplications() {
-  const state = useScreenState();
+  const authed = useRequireWorker();
+  const q = useApi<MyApplication[]>(authed ? "/worker/applications" : null);
+  const apps = q.data ?? [];
+  const state = useScreenState({ isLoading: !authed || q.isLoading, isError: q.isError }, apps.length === 0);
 
   return (
     <WorkerFrame>
@@ -81,7 +41,7 @@ export default function WorkerApplications() {
             title="지원 현황을 불러오지 못했어요"
             desc="잠시 후 다시 시도해 주세요."
           />
-        ) : state === "empty" || APPS.length === 0 ? (
+        ) : state === "empty" ? (
           <EmptyState
             icon="ClipboardList"
             title="아직 지원한 공고가 없어요"
@@ -93,9 +53,9 @@ export default function WorkerApplications() {
             }
           />
         ) : (
-          APPS.map((a, i) => (
+          apps.map(a => (
             <div
-              key={i}
+              key={a.id}
               className="bg-card rounded-card border border-line shadow-soft p-4"
             >
               <div className="flex items-start justify-between gap-3">
@@ -103,9 +63,9 @@ export default function WorkerApplications() {
                   <div className="text-[11px] font-bold text-brand-600 tracking-[0.02em]">
                     {a.brand}
                   </div>
-                  <div className="text-[14px] font-extrabold text-ink mt-0.5 truncate">
+                  <Link href={`/worker/job/${a.jobId}`} className="block text-[14px] font-extrabold text-ink mt-0.5 truncate hover:underline">
                     {a.title}
-                  </div>
+                  </Link>
                 </div>
                 <Badge tone={STATUS_TONE[a.status]}>{a.status}</Badge>
               </div>

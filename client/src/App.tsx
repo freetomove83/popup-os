@@ -3,6 +3,7 @@ import { Route, Switch } from "wouter";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import AdminConsole from "@/pages/admin/AdminConsole";
+import AdminLogin from "@/pages/admin/login";
 import Home from "@/pages/Home";
 import Landing from "@/pages/landing/Landing";
 import NotFound from "@/pages/NotFound";
@@ -25,6 +26,7 @@ function Router() {
       <Route path="/landing" component={Landing} />
 
       {/* 관리자 콘솔 */}
+      <Route path="/admin/login" component={AdminLogin} />
       <Route path="/admin" component={AdminConsole} />
 
       {/* 스태프(워커) 앱 */}

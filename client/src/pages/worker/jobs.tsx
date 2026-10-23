@@ -7,7 +7,8 @@ import { WorkerFrame, WorkerHeader } from "@/components/layout/worker-frame";
 import { Badge } from "@/components/ui/badge";
 import { FilterChip } from "@/components/ui/filter-chip";
 import { Input } from "@/components/ui/input";
-import { JOBS, type JobPosting } from "@/data/jobs";
+import type { JobPosting } from "@/data/jobs";
+import { useApi } from "@/lib/api";
 import { useScreenState } from "@/hooks/useScreenState";
 import { cn } from "@/lib/utils";
 
@@ -75,15 +76,37 @@ function JobCard({ job }: { job: JobPosting }) {
   );
 }
 
+const day = (s: string) => new Date(s.replace(/\./g, "-"));
+const today = () => new Date().toLocaleDateString("sv-SE").replace(/-/g, ".");
+
+const FILTERS: { label: string; test: (j: JobPosting) => boolean }[] = [
+  { label: "전체", test: () => true },
+  { label: "서울", test: j => j.area.startsWith("서울") },
+  {
+    label: "주말",
+    test: j => {
+      for (let d = day(j.startDate); d <= day(j.endDate); d.setDate(d.getDate() + 1)) {
+        if (d.getDay() === 0 || d.getDay() === 6) return true;
+      }
+      return false;
+    },
+  },
+  { label: "상하차", test: j => j.roles.some(r => r.name.includes("상하차")) },
+  { label: "외국어", test: j => [...j.tags, ...j.roles.flatMap(r => r.tags)].some(t => t.includes("외국어")) },
+  { label: "당일", test: j => j.startDate <= today() && today() <= j.endDate },
+];
+
 export default function WorkerJobs() {
-  const state = useScreenState();
-  const filters = ["전체", "서울", "주말", "상하차", "외국어", "당일"];
+  const query = useApi<JobPosting[]>("/jobs");
   const [active, setActive] = React.useState(0);
   const [q, setQ] = React.useState("");
 
-  const list = JOBS.filter(j =>
-    q ? j.title.includes(q) || j.brand.includes(q) || j.area.includes(q) : true,
+  const list = (query.data ?? []).filter(
+    j =>
+      FILTERS[active].test(j) &&
+      (q ? j.title.includes(q) || j.brand.includes(q) || j.area.includes(q) || j.roles.some(r => r.name.includes(q)) : true),
   );
+  const state = useScreenState(query);
 
   return (
     <WorkerFrame>
@@ -104,9 +127,9 @@ export default function WorkerJobs() {
           onChange={e => setQ(e.target.value)}
         />
         <div className="flex flex-wrap gap-2 mt-3.5" role="group" aria-label="공고 필터">
-          {filters.map((f, i) => (
-            <FilterChip key={f} on={i === active} onClick={() => setActive(i)}>
-              {f}
+          {FILTERS.map((f, i) => (
+            <FilterChip key={f.label} on={i === active} onClick={() => setActive(i)}>
+              {f.label}
             </FilterChip>
           ))}
         </div>
@@ -122,7 +145,7 @@ export default function WorkerJobs() {
               title="공고를 불러오지 못했어요"
               desc="잠시 후 다시 시도해 주세요."
             />
-          ) : list.length === 0 ? (
+          ) : state === "empty" || list.length === 0 ? (
             <EmptyState
               icon="SearchX"
               title="조건에 맞는 공고가 없어요"

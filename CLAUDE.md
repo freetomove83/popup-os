@@ -1,10 +1,10 @@
 # Popup OS — Claude Code 핸드오프
 
 팝업스토어 대행사·브랜드를 위한 **B2B 운영 OS**(구인 → 전자계약 → QR 출퇴근 → 정산).
-현재는 **목데이터 기반 프론트 프로토타입 + 마케팅 랜딩**까지 완료된 상태다. **Laravel backend는 아직 없다.**
+프론트(관리자·워커·스태프 화면) + **Laravel 13 API(SQLite)** 로 핵심 흐름이 로컬에서 실제 동작한다. 마케팅 랜딩은 정적.
 
 - 운영주체: 더블엠 / 브랜드: Popup OS
-- 상태: 프론트 프로토타입·랜딩 완료, DB·API·인증·배포 미착수
+- 상태: 핵심 흐름(공고→지원→승인→계약 서명→QR 출퇴근→정산 발행→커리어 인증) 로컬 동작. 외부 연동(SMS/알림톡·지급)·배포 미착수
 - 비즈니스 모델·전략: **`docs/bm.md`** (포지셔닝·수익모델·채널갈등·벤치마크)
 - 랜딩 브리프: `docs/landing-brief.md` / 제품 디자인 브리프: `docs/design-brief.md`
 
@@ -18,7 +18,17 @@ npm install                 # (필요 시 --legacy-peer-deps)
 npm run dev                 # Vite 5173 (백그라운드로 띄워두면 편함)
 npm run check               # tsc --noEmit (필수 통과)
 npm run build:spa           # vite build → backend/public/build
+
+cd backend                  # PHP 8.4 (Herd) · composer
+composer install            # 새 PC에서만
+cp .env.example .env && php artisan key:generate   # 새 PC에서만
+php artisan migrate:fresh --seed   # SQLite 초기화 + 데모 데이터(날짜는 실행일 기준)
+php artisan storage:link           # 사진 업로드용(최초 1회)
+php artisan serve --port=8000      # Vite가 /api·/storage 를 8000으로 프록시
 ```
+
+- 로컬 테스트 계정: `backend/database/seeders/DatabaseSeeder.php` 상단 주석. 워커 OTP는 local 환경에서 화면 토스트로 표시(SMS 미연동).
+- Windows Git Bash에서는 Herd의 `php`가 안 잡힐 수 있다 → PowerShell에서 실행.
 
 - 로컬: `http://localhost:5173/landing`
 - ⚠ dev 서버가 세션 정리로 자주 꺼진다. `curl -s -o /dev/null -w "%{http_code}" http://localhost:5173/landing` 이 000이면 `npm run dev`를 백그라운드로 재기동.
@@ -27,7 +37,11 @@ npm run build:spa           # vite build → backend/public/build
 ## 2. 기술 스택 / 구조
 
 - **프론트**: Vite 7 + React 19 + TypeScript + **Tailwind v4(CSS-first)** + shadcn/ui(new-york) + wouter + React Query + lucide-react + sonner
-- **백엔드(예정)**: Laravel (onoffcheck 관례). 현재 `backend/`에는 `public/build` 산출물만 존재.
+- **백엔드**: Laravel 13 + Sanctum 토큰(관리자 `abilities:admin` / 워커 `abilities:worker`) + SQLite.
+  - 스키마: `backend/database/migrations/2026_10_23_100000_create_popup_os_tables.php` (projects=공고, positions, workers, work_records, applications, contracts, attendance_logs, settlements)
+  - API: `routes/api.php` → `AuthController`, `AdminController`, `WorkerController`
+  - 응답 모양: `app/Support/Present.php` (프론트 `client/src/data/*.ts` 타입과 짝, 신체 정확값·연락처 원문은 여기서 차단) / 급여: `app/Support/Payroll.php`
+- 프론트 API: `client/src/lib/api.ts` (`api()`, `useApi()`, `useAction()`), 화면 상태는 `useScreenState(query, isEmpty)` — `?state=` 강제도 유지.
 - Vite root = `client/`, alias `@` → `client/src`, publicDir = `client/public`
 - build outDir = `backend/public/build`, **base = `/build/`** (운영 시 Laravel이 동일 출처 서빙 전제)
 - `index.html`은 `client/index.html`, 진입점 `client/src/main.tsx` → `App.tsx`
@@ -116,11 +130,13 @@ popup-os/
 
 ## 9. 다음 작업 (권장 순서)
 
-1. **DB 스키마 + 마이그레이션** — Workers/WorkerProfiles, WorkRecords, Postings(등록주체·consent·claim), Projects/Positions, Applications(스냅샷), Contracts, AttendanceLogs(**GPS 없음**, qr_token/scan_at/photo_url), Settlement.
-2. **Laravel backend 스캐폴딩 + 관리자/워커 인증**(토큰) + API.
-3. 프론트 목데이터 → API 연동(React Query), 빈/로딩/에러 상태 유지.
-4. 랜딩 도입문의 수신 API + SEO/OG.
-5. 배포 파이프라인(onoffcheck `deploy/` 이식 검토) — 호스팅 위치 확정 후.
+완료: DB 스키마·Laravel API·관리자/워커 인증·전 화면 API 연동(2026-10-23).
+남은 `shortcut:` 주석(코드에서 grep) = 아래 항목의 자리표시:
+1. **외부 발송 연동** — SMS OTP, 알림톡 계약 발송·주관사 초대(현재 상태만 변경).
+2. **QR 카메라 스캔** — 현재 매니저 화면 6자리 코드를 워커가 입력. 같은 `/api/worker/attendance` 로 code 전송하면 됨.
+3. **정산 규칙** — 가산·주휴수당 0, 원천징수 3.3% 고정. 일용근로소득 선택·규칙 테이블.
+4. 이의신청 관리자 처리 화면, 주관사 claim(합류) 흐름, 공개 프로필 링크.
+5. 랜딩 도입문의 수신 API + SEO/OG, 배포 파이프라인(호스팅 확정 후).
 
 ## 10. 함정 / 주의
 
@@ -128,7 +144,8 @@ popup-os/
 - 로고/이미지 URL에 `import.meta.env.BASE_URL` 필수(운영 base `/build/`).
 - 스크린샷: 헤드리스 Chrome. 전체 페이지는 큰 `--window-size`로 캡처 후 PIL로 슬라이스. `--headless=new` 동작함(컨퍼런스 프로젝트는 구형 `--headless` 사용 — 혼동 주의).
 - 실제 브랜드/행사명을 목데이터·랜딩에 넣지 말 것.
-- `backend/`에 Laravel 앱이 없다는 전제를 잊지 말 것(현재는 SPA만).
+- 운영 배포 시 Laravel이 SPA(`/build/`)를 서빙하는 web 라우트는 아직 없다(호스팅 미정).
+- 시드는 실행일 기준 상대 날짜 — 며칠 지나 화면이 비면 `php artisan migrate:fresh --seed` 다시 실행.
 
 ## 11. 참고 문서 / 에셋
 

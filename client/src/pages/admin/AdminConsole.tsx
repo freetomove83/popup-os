@@ -1,8 +1,10 @@
 import * as React from "react";
+import { useLocation } from "wouter";
 
 import { EmptyState } from "@/components/feedback";
 import { AdminShell, type AdminNavKey } from "@/components/layout/admin-shell";
 import { Card } from "@/components/ui/card";
+import { session } from "@/lib/api";
 import { AttendanceScreen } from "@/pages/admin/attendance";
 import { ContractScreen } from "@/pages/admin/contract";
 import { DashboardScreen } from "@/pages/admin/dashboard";
@@ -44,6 +46,12 @@ const VALID: AdminNavKey[] = [
 ];
 
 export default function AdminConsole() {
+  const [, go] = useLocation();
+  const authed = !!session.get("admin");
+  React.useEffect(() => {
+    if (!authed) go("/admin/login");
+  }, [authed, go]);
+
   const [active, setActive] = React.useState<AdminNavKey>(() => {
     if (typeof window === "undefined") return "dashboard";
     const v = new URLSearchParams(window.location.search).get("screen");
@@ -56,6 +64,8 @@ export default function AdminConsole() {
     url.searchParams.set("screen", key);
     window.history.replaceState(null, "", url.toString());
   }, []);
+
+  if (!authed) return null;
 
   switch (active) {
     case "project":

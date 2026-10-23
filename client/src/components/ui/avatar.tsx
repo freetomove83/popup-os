@@ -17,8 +17,11 @@ export function Avatar({
   tone = "brand",
   round,
   className,
+  src,
 }: {
   initials: string;
+  /** 검수 승인된 사진 URL — 없으면 이니셜 */
+  src?: string;
   size?: number;
   tone?: AvatarTone;
   round?: boolean;
@@ -29,6 +32,7 @@ export function Avatar({
       className={cn(
         "inline-grid place-items-center font-extrabold shrink-0",
         AVATAR_TONE[tone],
+        src && "overflow-hidden",
         className,
       )}
       style={{
@@ -38,7 +42,7 @@ export function Avatar({
         fontSize: Math.round(size * 0.34),
       }}
     >
-      {initials}
+      {src ? <img src={src} alt="" className="w-full h-full object-cover" /> : initials}
     </span>
   );
 }

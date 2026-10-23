@@ -1,11 +1,18 @@
+import * as React from "react";
+import { toast } from "sonner";
+
 import { EmptyState } from "@/components/feedback";
 import { Icon } from "@/components/icon";
 import { PhoneShell } from "@/components/layout/phone-shell";
 import { Note } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { Shift } from "@/data/worker-app";
 import { useScreenState } from "@/hooks/useScreenState";
+import { api, session, useAction, useApi } from "@/lib/api";
+import { LoginNeeded } from "@/pages/staff/contract";
 import { cn } from "@/lib/utils";
 
 function QrPanel({ scanned = true }: { scanned?: boolean }) {
@@ -35,7 +42,7 @@ function QrPanel({ scanned = true }: { scanned?: boolean }) {
         )}
       >
         <Icon name={scanned ? "CircleCheck" : "ScanQrCode"} size={14} />
-        {scanned ? "매니저 QR 인증 완료" : "QR 스캔 대기 중"}
+        {scanned ? "출근 인증 완료" : "QR 스캔 대기 중"}
       </span>
       <span className="absolute left-3 bottom-3 text-[11px] text-muted-foreground">
         현장에 게시된 매니저 QR을 스캔하세요
@@ -88,33 +95,44 @@ function StepRow({
 }
 
 export function StaffCheckinScreen() {
-  const state = useScreenState();
-  const foot = (
-    <div className="flex justify-between text-[12.5px] text-muted-foreground font-medium tabular">
-      <span>퇴근 예정 19:00</span>
-      <span>근무 3일 중 1일차</span>
-    </div>
+  const authed = !!session.get("worker");
+  const q = useApi<{ shift: Shift | null }>(authed ? "/worker/shift" : null);
+  const shift = q.data?.shift;
+  const state = useScreenState(q, !shift);
+  const [code, setCode] = React.useState("");
+  const attend = useAction(
+    () => api<{ shift: Shift }>("/worker/attendance", { body: { code } }),
+    r => {
+      setCode("");
+      toast.success(r.shift.checkOut ? `퇴근 완료 ${r.shift.checkOut}` : `출근 완료 ${r.shift.checkIn}`, {
+        description: r.shift.late && !r.shift.checkOut ? "근무 시작 10분이 지나 지각으로 기록됐어요." : undefined,
+      });
+    },
   );
-  const eb = "POPUP OS · 출퇴근";
-  const tt = "더현대 서울 5F · 1일차";
 
-  if (state === "loading")
+  const eb = "POPUP OS · 출퇴근";
+  if (!authed) return <LoginNeeded eyebrow={eb} title="출근 체크인" />;
+
+  if (state === "loading" || state === "error")
     return (
-      <PhoneShell eyebrow={eb} title={tt} footer={foot}>
-        <div className="space-y-4">
-          <div className="relative h-[200px] rounded-[16px] bg-surface-3 animate-pulse grid place-items-center">
-            <span className="inline-flex items-center gap-2 text-[13px] font-bold text-ink-3">
-              <Icon name="LoaderCircle" size={16} className="animate-spin" />
-              QR 스캔 준비 중…
-            </span>
+      <PhoneShell eyebrow={eb} title="출근 체크인">
+        {state === "error" ? (
+          <EmptyState icon="CloudOff" title="근무 정보를 불러오지 못했어요" desc="잠시 후 다시 시도해 주세요." className="pt-24" />
+        ) : (
+          <div className="space-y-4">
+            <div className="relative h-[200px] rounded-[16px] bg-surface-3 animate-pulse grid place-items-center">
+              <span className="inline-flex items-center gap-2 text-[13px] font-bold text-ink-3">
+                <Icon name="LoaderCircle" size={16} className="animate-spin" />
+                QR 스캔 준비 중…
+              </span>
+            </div>
+            <Skeleton className="h-[130px] rounded-[14px]" />
           </div>
-          <Skeleton className="h-[130px] rounded-[14px]" />
-          <Skeleton className="h-14 rounded-[14px]" />
-        </div>
+        )}
       </PhoneShell>
     );
 
-  if (state === "empty")
+  if (state === "empty" || !shift)
     return (
       <PhoneShell eyebrow={eb} title="오늘 근무 일정 없음">
         <EmptyState
@@ -126,50 +144,69 @@ export function StaffCheckinScreen() {
       </PhoneShell>
     );
 
-  const err = state === "error";
+  const done = !!shift.checkOut;
+  const foot = (
+    <div className="flex justify-between text-[12.5px] text-muted-foreground font-medium tabular">
+      <span>
+        근무 {shift.startTime}~{shift.endTime}
+      </span>
+      <span>
+        근무 {shift.days}일 중 {shift.day}일차
+      </span>
+    </div>
+  );
+
   return (
-    <PhoneShell eyebrow={eb} title={tt} footer={foot}>
+    <PhoneShell eyebrow={eb} title={`${shift.venue} · ${shift.day}일차`} footer={foot}>
       <div className="space-y-3.5">
-        <QrPanel scanned={!err} />
+        <QrPanel scanned={!!shift.checkIn} />
         <div className="rounded-[14px] border border-line px-3.5 divide-y divide-surface-3">
           <StepRow
-            icon="QrCode"
-            title="매니저 QR 스캔"
-            sub="출근 인증 · 필수"
-            st={err ? "wait" : "done"}
+            icon="LogIn"
+            title={`출근 ${shift.checkIn ?? ""}`}
+            sub={shift.late ? "매니저 QR · 지각 기록" : "매니저 QR 스캔 · 필수"}
+            st={shift.checkIn ? "done" : "wait"}
           />
-          <StepRow icon="Camera" title="사진 인증" sub="현장 셀피 · 선택" st="done" />
+          <StepRow
+            icon="LogOut"
+            title={`퇴근 ${shift.checkOut ?? ""}`}
+            sub="같은 QR을 다시 스캔"
+            st={shift.checkOut ? "done" : "wait"}
+          />
         </div>
-        {err ? (
-          <Note tone="danger" icon="QrCode" title="매니저 QR을 스캔해 주세요">
-            현장에 게시된 매니저 QR을 스캔하면 체크인이 완료돼요.
+        {done ? (
+          <Note tone="success" icon="CircleCheck" title="오늘 근무를 마쳤어요">
+            정산은 행사 종료 후 출퇴근 기록으로 자동 계산돼요.
           </Note>
         ) : (
-          <Note tone="info">
-            출근 인증은 <b className="text-info-700">현장 매니저 QR 스캔</b>으로만 이루어져요. GPS·위치
-            권한이 필요 없고, 사진 인증과 함께 대리출근을 방지합니다.
-          </Note>
+          <>
+            <Note tone="info">
+              현장에 게시된 <b className="text-info-700">매니저 QR 아래 6자리 코드</b>를 입력하세요.
+              GPS·위치 권한은 필요 없어요.
+            </Note>
+            <div className="flex gap-2">
+              <Input
+                icon="ScanQrCode"
+                inputMode="numeric"
+                maxLength={6}
+                value={code}
+                onChange={e => setCode(e.target.value.replace(/\D/g, ""))}
+                placeholder="QR 코드 6자리"
+                className="flex-1 h-12 tabular"
+              />
+              <Button
+                variant="success"
+                size="xl"
+                icon={shift.checkIn ? "LogOut" : "LogIn"}
+                disabled={code.length !== 6}
+                loading={attend.isPending}
+                onClick={() => attend.mutate()}
+              >
+                {shift.checkIn ? "퇴근" : "출근"}
+              </Button>
+            </div>
+          </>
         )}
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="xl"
-            icon="ScanQrCode"
-            className={err ? "flex-1" : "w-[120px]"}
-          >
-            {err ? "매니저 QR 스캔" : "QR"}
-          </Button>
-          <Button
-            variant="success"
-            size="xl"
-            icon="LogIn"
-            className="flex-1"
-            disabled={err}
-          >
-            출근 체크인{" "}
-            <span className="tabular font-semibold opacity-90">09:52</span>
-          </Button>
-        </div>
       </div>
     </PhoneShell>
   );

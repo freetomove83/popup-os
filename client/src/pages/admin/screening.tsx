@@ -1,4 +1,5 @@
 import * as React from "react";
+import { toast } from "sonner";
 
 import { EmptyState, ErrorState } from "@/components/feedback";
 import { Icon } from "@/components/icon";
@@ -23,7 +24,10 @@ import {
   inBucket,
   WEIGHT_OPTIONS,
 } from "@/lib/body";
-import { WORKERS, type Worker } from "@/data/workers";
+import type { Applicant, ApplicationStatus } from "@/data/admin";
+import type { Worker } from "@/data/workers";
+import { ProjectPicker, useAdminProject } from "@/hooks/useAdminProject";
+import { api, useAction, useApi } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 const STAT_TONE: Record<string, string> = {
@@ -65,44 +69,85 @@ function StatGrid({ worker }: { worker: Worker }) {
   );
 }
 
-function WorkerActions({ worker, row }: { worker: Worker; row?: boolean }) {
-  const primary =
-    worker.act === "approve" ? (
-      <Button size="sm" icon="Check" block={!row}>
-        승인
+const APP_STATUS: Record<ApplicationStatus, { tone: "neutral" | "success" | "warning" | "danger"; label: string }> = {
+  applied: { tone: "neutral", label: "검토 대기" },
+  held: { tone: "warning", label: "보류" },
+  approved: { tone: "success", label: "승인됨" },
+  rejected: { tone: "danger", label: "미선정" },
+};
+
+export type SetStatus = (ids: number[], status: "approved" | "held" | "rejected") => void;
+
+export function WorkerActions({
+  applicant,
+  setStatus,
+  row,
+}: {
+  applicant: Applicant;
+  setStatus: SetStatus;
+  row?: boolean;
+}) {
+  const { worker, status, applicationId: id } = applicant;
+  if (status === "approved") {
+    return applicant.contracted ? (
+      <Badge tone="success" icon="FileCheck2">
+        계약 발송됨
+      </Badge>
+    ) : (
+      <Button variant="outline" size="sm" icon="Undo2" block={!row} onClick={() => setStatus([id], "held")}>
+        승인 취소
       </Button>
-    ) : worker.act === "trial" ? (
-      <Button variant="soft" size="sm" icon="FlaskConical" block={!row}>
+    );
+  }
+  const primary =
+    worker.act === "trial" ? (
+      <Button variant="soft" size="sm" icon="FlaskConical" block={!row} onClick={() => setStatus([id], "approved")}>
         시범 채용
       </Button>
     ) : (
-      <Button variant="outline" size="sm" icon="Check" block={!row}>
+      <Button
+        variant={worker.act === "caution" ? "outline" : "primary"}
+        size="sm"
+        icon="Check"
+        block={!row}
+        onClick={() => setStatus([id], "approved")}
+      >
         승인
       </Button>
     );
   return (
     <>
       {primary}
-      <Button variant="outline" size="sm" icon="Pause" block={!row}>
-        보류
-      </Button>
+      {status === "held" ? (
+        <Button variant="outline" size="sm" icon="X" block={!row} onClick={() => setStatus([id], "rejected")}>
+          미선정
+        </Button>
+      ) : (
+        <Button variant="outline" size="sm" icon="Pause" block={!row} onClick={() => setStatus([id], "held")}>
+          보류
+        </Button>
+      )}
     </>
   );
 }
 
 function WorkerCard({
-  worker,
+  applicant,
   narrow,
   selected,
   onToggle,
   onOpen,
+  setStatus,
 }: {
-  worker: Worker;
+  applicant: Applicant;
   narrow: boolean;
   selected: boolean;
   onToggle: () => void;
   onOpen: () => void;
+  setStatus: SetStatus;
 }) {
+  const worker = applicant.worker;
+  const st = APP_STATUS[applicant.status];
   return (
     <Card
       hoverable
@@ -114,12 +159,16 @@ function WorkerCard({
       )}
     >
       <span className="pt-4" onClick={e => e.stopPropagation()}>
-        <Checkbox checked={selected} onCheckedChange={onToggle} />
+        <Checkbox checked={selected} onCheckedChange={onToggle} disabled={applicant.status === "approved"} />
       </span>
-      <Avatar initials={worker.ini} size={narrow ? 44 : 52} tone={worker.tone} />
+      <Avatar initials={worker.ini} size={narrow ? 44 : 52} tone={worker.tone} src={worker.photoUrl ?? undefined} />
       <div className="min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-[15px] font-extrabold text-ink">{worker.name}</span>
+          <Badge tone={st.tone} noIcon>
+            {st.label}
+          </Badge>
+          <span className="text-caption font-semibold text-ink-3">{applicant.position}</span>
           <WorkerBadges flags={worker.flags} />
           {worker.photoStatus === "pending" && (
             <Badge tone="warning" icon="Clock">
@@ -148,7 +197,7 @@ function WorkerCard({
         )}
         {narrow && (
           <div className="flex gap-2 mt-3" onClick={e => e.stopPropagation()}>
-            <WorkerActions worker={worker} row />
+            <WorkerActions applicant={applicant} setStatus={setStatus} row />
           </div>
         )}
       </div>
@@ -158,7 +207,7 @@ function WorkerCard({
           className="flex flex-col gap-1.5 w-[92px]"
           onClick={e => e.stopPropagation()}
         >
-          <WorkerActions worker={worker} />
+          <WorkerActions applicant={applicant} setStatus={setStatus} />
           <button
             type="button"
             onClick={onOpen}
@@ -178,21 +227,30 @@ export function ScreeningScreen({
 }: {
   onNavigate?: (key: AdminNavKey) => void;
 }) {
-  const state = useScreenState();
+  const ctx = useAdminProject();
+  const q = useApi<Applicant[]>(ctx.current ? `/admin/projects/${ctx.current.id}/applicants` : null);
+  const all = q.data ?? [];
   const narrow = useIsNarrow();
-  const [selected, setSelected] = React.useState<Set<string>>(
-    () => new Set(WORKERS.filter(w => w.sel).map(w => w.id)),
-  );
+  const [selected, setSelected] = React.useState<Set<number>>(() => new Set());
   const [activeFilter, setActiveFilter] = React.useState(0);
+  const [statusFilter, setStatusFilter] = React.useState("open");
   const [height, setHeight] = React.useState("all");
   const [weight, setWeight] = React.useState("all");
-  const [detail, setDetail] = React.useState<Worker | null>(() => {
-    if (typeof window === "undefined") return null;
-    const id = new URLSearchParams(window.location.search).get("applicant");
-    return WORKERS.find(w => w.id === id) ?? null;
-  });
+  const [detailId, setDetailId] = React.useState<string | null>(() =>
+    typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("applicant"),
+  );
 
-  const toggle = (id: string) =>
+  const update = useAction(
+    (v: { ids: number[]; status: "approved" | "held" | "rejected" }) =>
+      api<{ updated: number }>("/admin/applications/status", { body: v }),
+    r => {
+      toast.success(`${r.updated}명 처리했어요`);
+      setSelected(new Set());
+    },
+  );
+  const setStatus: SetStatus = (ids, status) => update.mutate({ ids, status });
+
+  const toggle = (id: number) =>
     setSelected(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -200,19 +258,34 @@ export function ScreeningScreen({
       return next;
     });
 
-  if (detail) {
-    return <ApplicantDetail worker={detail} onBack={() => setDetail(null)} />;
+  const detail = all.find(a => a.worker.id === detailId);
+  if (detailId) {
+    return (
+      <ApplicantDetail
+        workerId={detailId}
+        applicant={detail}
+        setStatus={setStatus}
+        onBack={() => setDetailId(null)}
+        onNavigate={onNavigate}
+      />
+    );
   }
 
   const hb = findBucket(HEIGHT_OPTIONS, height);
   const wb = findBucket(WEIGHT_OPTIONS, weight);
   const tagTest = TAG_FILTERS[activeFilter].test;
 
-  const filtered = WORKERS.filter(
-    w =>
+  const filtered = all.filter(
+    ({ worker: w, status }) =>
+      (statusFilter === "all" ||
+        (statusFilter === "open" ? status === "applied" || status === "held" : status === statusFilter)) &&
       tagTest(w) &&
       inBucket(w.height, hb.min, hb.max) &&
       inBucket(w.weight, wb.min, wb.max),
+  );
+  const state = useScreenState(
+    { isLoading: ctx.list.isLoading || q.isLoading, isError: ctx.list.isError || q.isError },
+    all.length === 0,
   );
 
   const body =
@@ -248,14 +321,15 @@ export function ScreeningScreen({
                 icon="FilterX"
                 onClick={() => {
                   setActiveFilter(0);
+                  setStatusFilter("all");
                   setHeight("all");
                   setWeight("all");
                 }}
               >
                 필터 초기화
               </Button>
-              <Button size="sm" icon="Megaphone">
-                모집 공고 열기
+              <Button size="sm" icon="Megaphone" onClick={() => onNavigate?.("postings")}>
+                공고 관리
               </Button>
             </div>
           }
@@ -263,14 +337,15 @@ export function ScreeningScreen({
       </Card>
     ) : (
       <div className="space-y-2.5">
-        {filtered.map(w => (
+        {filtered.map(a => (
           <WorkerCard
-            key={w.id}
-            worker={w}
+            key={a.applicationId}
+            applicant={a}
             narrow={narrow}
-            selected={selected.has(w.id)}
-            onToggle={() => toggle(w.id)}
-            onOpen={() => setDetail(w)}
+            selected={selected.has(a.applicationId)}
+            onToggle={() => toggle(a.applicationId)}
+            onOpen={() => setDetailId(a.worker.id)}
+            setStatus={setStatus}
           />
         ))}
       </div>
@@ -284,13 +359,22 @@ export function ScreeningScreen({
         crumb={["운영", "지원자 스크리닝"]}
         title={
           <>
-            운영 스태프 지원자 <span className="text-muted-foreground tabular">({count})</span>
+            {ctx.current ? ctx.current.brand : ""} 지원자{" "}
+            <span className="text-muted-foreground tabular">({count})</span>
           </>
         }
         actions={
-          <Button icon="CheckCheck" disabled={state !== "default"}>
-            선택 승인 ({state === "default" ? selected.size : 0})
-          </Button>
+          <>
+            <ProjectPicker ctx={ctx} />
+            <Button
+              icon="CheckCheck"
+              disabled={state !== "default" || selected.size === 0}
+              loading={update.isPending}
+              onClick={() => setStatus(Array.from(selected), "approved")}
+            >
+              선택 승인 ({state === "default" ? selected.size : 0})
+            </Button>
+          </>
         }
       />
 
@@ -303,6 +387,19 @@ export function ScreeningScreen({
           ))}
         </div>
         <div className="flex flex-wrap items-center gap-2 ml-auto">
+          <Select
+            ariaLabel="지원 상태"
+            icon="ListFilter"
+            value={statusFilter}
+            onChange={setStatusFilter}
+            options={[
+              { value: "open", label: "검토 필요" },
+              { value: "approved", label: "승인됨" },
+              { value: "rejected", label: "미선정" },
+              { value: "all", label: "전체 상태" },
+            ]}
+            className="w-[140px]"
+          />
           <Select
             ariaLabel="키 구간"
             icon="Ruler"

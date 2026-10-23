@@ -12,8 +12,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Table } from "@/components/ui/table";
 import { heightLabel, weightLabel } from "@/lib/body";
-import { CONTACT_LABEL, maskContact } from "@/lib/mask";
+import { ErrorState } from "@/components/feedback";
+import { Skeleton } from "@/components/ui/skeleton";
+import type { AdminNavKey } from "@/components/layout/admin-shell";
+import type { Applicant } from "@/data/admin";
 import type { PhotoStatus, Worker, WorkStatus } from "@/data/workers";
+import { api, useAction, useApi } from "@/lib/api";
+import { CONTACT_LABEL } from "@/lib/mask";
+import { WorkerActions, type SetStatus } from "@/pages/admin/screening";
 import { cn } from "@/lib/utils";
 
 const STAT_TONE: Record<string, string> = {
@@ -56,15 +62,25 @@ function StatBox({ stat }: { stat: Worker["stats"][number] }) {
 }
 
 function PhotoBlock({ worker }: { worker: Worker }) {
-  const [status, setStatus] = React.useState<PhotoStatus>(worker.photoStatus);
+  const status = worker.photoStatus;
   const meta = PHOTO_LABEL[status];
+  const review = useAction(
+    (s: "approved" | "rejected") => api(`/admin/workers/${worker.id}/photo`, { body: { status: s } }),
+    () => undefined,
+  );
 
   return (
     <CardBody>
       <div className="flex items-center gap-4">
         <div className="relative shrink-0">
           {status === "approved" ? (
-            <Avatar initials={worker.ini} size={84} tone={worker.tone} />
+            <Avatar initials={worker.ini} size={84} tone={worker.tone} src={worker.photoUrl ?? undefined} />
+          ) : status === "pending" && worker.reviewPhotoUrl ? (
+            <img
+              src={worker.reviewPhotoUrl}
+              alt="검수 대기 사진"
+              className="w-[84px] h-[84px] rounded-[22px] object-cover border border-warning-200"
+            />
           ) : (
             <div
               className={cn(
@@ -129,20 +145,24 @@ function PhotoBlock({ worker }: { worker: Worker }) {
               size="sm"
               variant="outline"
               icon="X"
-              onClick={() => {
-                setStatus("rejected");
-                toast("사진 반려", { description: "워커에게 재등록 안내가 발송됩니다." });
-              }}
+              loading={review.isPending && review.variables === "rejected"}
+              onClick={() =>
+                review.mutate("rejected", {
+                  onSuccess: () => toast("사진 반려", { description: "워커에게 재등록 안내가 표시됩니다." }),
+                })
+              }
             >
               반려
             </Button>
             <Button
               size="sm"
               icon="Check"
-              onClick={() => {
-                setStatus("approved");
-                toast.success("사진 승인됨", { description: "검카드에 사진이 노출됩니다." });
-              }}
+              loading={review.isPending && review.variables === "approved"}
+              onClick={() =>
+                review.mutate("approved", {
+                  onSuccess: () => toast.success("사진 승인됨", { description: "검카드에 사진이 노출됩니다." }),
+                })
+              }
             >
               사진 승인
             </Button>
@@ -167,14 +187,46 @@ function PhotoBlock({ worker }: { worker: Worker }) {
 }
 
 export function ApplicantDetail({
-  worker,
+  workerId,
+  applicant,
+  setStatus,
   onBack,
+  onNavigate,
 }: {
-  worker: Worker;
+  workerId: string;
+  applicant?: Applicant;
+  setStatus: SetStatus;
   onBack: () => void;
+  onNavigate?: (key: AdminNavKey) => void;
 }) {
+  const q = useApi<Worker>(`/admin/workers/${workerId}`);
+  const worker = q.data;
+  if (!worker) {
+    return (
+      <AdminShell active="screen" onNavigate={onNavigate}>
+        {q.isError ? (
+          <Card>
+            <ErrorState
+              title="지원자 정보를 불러오지 못했어요"
+              action={
+                <Button variant="outline" size="sm" icon="ChevronLeft" onClick={onBack}>
+                  목록으로
+                </Button>
+              }
+            />
+          </Card>
+        ) : (
+          <div className="grid gap-4 grid-cols-[1fr_1.6fr]">
+            <Skeleton className="h-[320px] rounded-card" />
+            <Skeleton className="h-[320px] rounded-card" />
+          </div>
+        )}
+      </AdminShell>
+    );
+  }
+
   return (
-    <AdminShell active="screen">
+    <AdminShell active="screen" onNavigate={onNavigate}>
       <PageHeader
         crumb={["운영", "지원자 스크리닝", "상세"]}
         title={worker.name}
@@ -193,18 +245,7 @@ export function ApplicantDetail({
             <Button variant="outline" size="sm" icon="ChevronLeft" onClick={onBack}>
               목록으로
             </Button>
-            <Button variant="outline" size="sm" icon="Pause">
-              보류
-            </Button>
-            {worker.act === "trial" ? (
-              <Button variant="soft" size="sm" icon="FlaskConical">
-                시범 채용
-              </Button>
-            ) : (
-              <Button size="sm" icon="Check">
-                승인
-              </Button>
-            )}
+            {applicant && <WorkerActions applicant={{ ...applicant, worker }} setStatus={setStatus} row />}
           </>
         }
       />
@@ -255,10 +296,11 @@ export function ApplicantDetail({
                     rows={[
                       [
                         CONTACT_LABEL[worker.contact.type],
-                        <span className="tabular">
-                          {maskContact(worker.contact.type, worker.contact.value)}
-                        </span>,
+                        <span className="tabular">{worker.contact.value}</span>,
                       ],
+                      ...(worker.instagram
+                        ? [[CONTACT_LABEL.instagram, <span className="tabular">{worker.instagram}</span>] as [string, React.ReactNode]]
+                        : []),
                     ]}
                   />
                   <Note tone="info" compact className="mt-3">

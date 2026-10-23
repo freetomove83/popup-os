@@ -1,10 +1,12 @@
 import * as React from "react";
+import { toast } from "sonner";
 import { useLocation } from "wouter";
 
 import { Mark, Wordmark } from "@/components/brand";
 import { Icon } from "@/components/icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { api, session } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 export default function WorkerLogin() {
@@ -14,7 +16,38 @@ export default function WorkerLogin() {
   const [otp, setOtp] = React.useState("");
   const [agree, setAgree] = React.useState(false);
 
+  const [busy, setBusy] = React.useState(false);
   const phoneOk = phone.replace(/\D/g, "").length >= 10;
+  const next = new URLSearchParams(window.location.search).get("next");
+
+  const sendOtp = async () => {
+    setBusy(true);
+    try {
+      const r = await api<{ debugCode?: string }>("/worker/otp", { body: { phone } });
+      setStep("otp");
+      // 개발 환경에서만 서버가 코드를 돌려준다(SMS 미연동).
+      if (r.debugCode) toast("개발용 인증번호", { description: r.debugCode, duration: 15000 });
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const verify = async () => {
+    setBusy(true);
+    try {
+      const r = await api<{ token: string; onboarding: boolean }>("/worker/verify", {
+        body: { phone, code: otp },
+      });
+      session.set("worker", { token: r.token });
+      navigate(r.onboarding ? "/worker/profile?onboarding=1" : next || "/worker");
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <div className="min-h-dvh bg-background flex justify-center sm:py-8">
@@ -64,7 +97,8 @@ export default function WorkerLogin() {
                   size="xl"
                   block
                   disabled={!phoneOk || !agree}
-                  onClick={() => setStep("otp")}
+                  loading={busy}
+                  onClick={sendOtp}
                 >
                   인증번호 받기
                 </Button>
@@ -81,11 +115,19 @@ export default function WorkerLogin() {
                 <Button
                   size="xl"
                   block
-                  disabled={otp.replace(/\D/g, "").length < 4}
-                  onClick={() => navigate("/worker/profile?onboarding=1")}
+                  disabled={otp.replace(/\D/g, "").length !== 6}
+                  loading={busy}
+                  onClick={verify}
                 >
                   인증하고 시작하기
                 </Button>
+                <button
+                  type="button"
+                  onClick={sendOtp}
+                  className="w-full text-[12.5px] font-semibold text-brand-600"
+                >
+                  인증번호 다시 받기
+                </button>
                 <button
                   type="button"
                   onClick={() => setStep("phone")}

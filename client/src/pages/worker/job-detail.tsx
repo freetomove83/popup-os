@@ -1,6 +1,6 @@
 import * as React from "react";
 import { toast } from "sonner";
-import { Link, useParams } from "wouter";
+import { Link, useLocation, useParams } from "wouter";
 
 import { EmptyState } from "@/components/feedback";
 import { Icon } from "@/components/icon";
@@ -10,14 +10,34 @@ import { Note } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { JOBS } from "@/data/jobs";
+import type { JobPosting } from "@/data/jobs";
+import { api, session, useAction, useApi } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 export default function WorkerJobDetail() {
   const params = useParams<{ id: string }>();
-  const job = JOBS.find(j => j.id === params.id);
-  const [roleIdx, setRoleIdx] = React.useState(0);
-  const [applied, setApplied] = React.useState(false);
+  const [, go] = useLocation();
+  const q = useApi<JobPosting>(`/jobs/${params.id}`);
+  const job = q.data;
+  const [picked, setPicked] = React.useState<number | null>(null);
+  const apply = useAction(
+    (positionId: number) => api("/worker/applications", { body: { positionId } }),
+    () =>
+      toast.success("지원 완료", {
+        description: `${role?.name} 포지션에 지원했어요. 승인되면 지원 현황에서 계약서를 확인할 수 있어요.`,
+      }),
+  );
+
+  if (q.isLoading) {
+    return (
+      <WorkerFrame>
+        <div className="px-5 py-6 space-y-3">
+          <div className="h-[90px] rounded-card bg-surface-3 animate-pulse" />
+          <div className="h-[220px] rounded-card bg-surface-3 animate-pulse" />
+        </div>
+      </WorkerFrame>
+    );
+  }
 
   if (!job) {
     return (
@@ -37,7 +57,21 @@ export default function WorkerJobDetail() {
     );
   }
 
+  const mine = job.myApplication;
+  const firstOpen = job.roles.findIndex(r => r.filled < r.headcount);
+  const roleIdx = mine
+    ? job.roles.findIndex(r => r.id === mine.position_id)
+    : (picked ?? Math.max(0, firstOpen));
   const role = job.roles[roleIdx];
+  const closed = job.status === "마감" || firstOpen === -1;
+  const onApply = () => {
+    if (!session.get("worker")) {
+      toast("로그인이 필요해요", { description: "휴대폰 인증 후 바로 지원할 수 있어요." });
+      go(`/worker/login?next=/worker/job/${job.id}`);
+      return;
+    }
+    apply.mutate(role.id);
+  };
   const payRange = (() => {
     const p = job.roles.map(r => r.pay);
     return `${Math.min(...p).toLocaleString()}~${Math.max(...p).toLocaleString()}원`;
@@ -102,10 +136,10 @@ export default function WorkerJobDetail() {
               const on = i === roleIdx;
               return (
                 <button
-                  key={r.name}
+                  key={r.id}
                   type="button"
-                  disabled={full}
-                  onClick={() => setRoleIdx(i)}
+                  disabled={full || !!mine}
+                  onClick={() => setPicked(i)}
                   className={cn(
                     "w-full text-left rounded-[14px] border p-3.5 transition-colors",
                     full
@@ -164,13 +198,13 @@ export default function WorkerJobDetail() {
       </div>
 
       <div className="sticky bottom-0 border-t border-line bg-surface px-5 pt-3 pb-4">
-        {applied ? (
+        {mine ? (
           <div className="space-y-2">
             <div className="flex items-center gap-2 h-12 px-3.5 rounded-lg bg-success-50 border border-success-200">
               <Icon name="CircleCheck" size={18} className="text-success-700" />
               <span className="text-[13px] font-bold text-success-700">지원 완료</span>
               <span className="text-[12px] text-ink-3">
-                {role.name} · 승인 대기
+                {role?.name} · {mine.status === "approved" ? "승인됨" : mine.status === "rejected" ? "미선정" : "검토 중"}
               </span>
             </div>
             <Link href="/worker/applications" className="block">
@@ -180,18 +214,8 @@ export default function WorkerJobDetail() {
             </Link>
           </div>
         ) : (
-          <Button
-            size="xl"
-            block
-            icon="Send"
-            onClick={() => {
-              setApplied(true);
-              toast.success("지원 완료", {
-                description: `${role.name} 포지션에 지원했어요. 승인되면 알림톡으로 알려드려요.`,
-              });
-            }}
-          >
-            {role.name} 지원하기
+          <Button size="xl" block icon="Send" disabled={closed} loading={apply.isPending} onClick={onApply}>
+            {closed ? "모집 마감" : `${role.name} 지원하기`}
           </Button>
         )}
       </div>

@@ -36,7 +36,7 @@ export default function Home() {
           <div>
             <Wordmark size={26} />
             <div className="text-caption text-muted-foreground font-semibold mt-1">
-              팝업스토어 운영 OS · MVP 목데이터 프로토타입
+              팝업스토어 운영 OS · 로컬 개발 (Laravel API 연동)
             </div>
           </div>
         </div>
@@ -68,8 +68,9 @@ export default function Home() {
         </div>
 
         <p className="text-caption text-muted-foreground mt-6">
-          화면 상태 확인: URL 에 <code className="tabular">?state=empty|loading|error</code>{" "}
-          를 붙이면 빈/로딩/에러 분기를 볼 수 있습니다.
+          로컬 계정은 <code className="tabular">backend/database/seeders/DatabaseSeeder.php</code>{" "}
+          상단에 있습니다. 디자인 확인용으로 URL 에 <code className="tabular">?state=empty|loading|error</code>
+          를 붙이면 빈/로딩/에러 분기를 강제로 볼 수 있어요.
         </p>
       </div>
     </div>

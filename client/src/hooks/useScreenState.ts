@@ -1,11 +1,19 @@
 export type ScreenState = "default" | "empty" | "loading" | "error";
 
 /**
- * 목데이터 프론트 단계에서 화면 상태를 URL 로 강제하기 위한 훅.
- * `?state=empty|loading|error` 로 진입하면 해당 분기를 렌더한다. (기본 default)
+ * 화면 상태 = 쿼리 상태(로딩/에러/빈 데이터)에서 계산한다.
+ * 디자인 확인용으로 `?state=empty|loading|error` 를 붙이면 그 분기를 강제로 렌더한다.
  */
-export function useScreenState(): ScreenState {
-  if (typeof window === "undefined") return "default";
-  const v = new URLSearchParams(window.location.search).get("state");
-  return v === "empty" || v === "loading" || v === "error" ? v : "default";
+export function useScreenState(
+  query?: { isLoading: boolean; isError: boolean },
+  isEmpty = false,
+): ScreenState {
+  if (typeof window !== "undefined") {
+    const v = new URLSearchParams(window.location.search).get("state");
+    if (v === "empty" || v === "loading" || v === "error") return v;
+  }
+  if (!query) return "default";
+  if (query.isLoading) return "loading";
+  if (query.isError) return "error";
+  return isEmpty ? "empty" : "default";
 }

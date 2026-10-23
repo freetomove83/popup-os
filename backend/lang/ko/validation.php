@@ -1,0 +1,55 @@
+<?php
+
+// 프론트 토스트에 그대로 노출되는 규칙만 한국어로 둔다.
+return [
+    'accepted' => ':attribute에 동의해 주세요.',
+    'after' => ':attribute은(는) :date 이후여야 해요.',
+    'after_or_equal' => ':attribute은(는) :date와 같거나 이후여야 해요.',
+    'array' => ':attribute 형식이 올바르지 않아요.',
+    'boolean' => ':attribute 형식이 올바르지 않아요.',
+    'date' => ':attribute 날짜 형식이 올바르지 않아요.',
+    'date_format' => ':attribute은(는) :format 형식이어야 해요.',
+    'email' => '이메일 형식이 올바르지 않아요.',
+    'exists' => '선택한 :attribute을(를) 찾을 수 없어요.',
+    'image' => ':attribute은(는) 이미지 파일이어야 해요.',
+    'in' => ':attribute 값이 올바르지 않아요.',
+    'integer' => ':attribute은(는) 숫자여야 해요.',
+    'max' => [
+        'numeric' => ':attribute은(는) :max 이하여야 해요.',
+        'file' => ':attribute은(는) :max KB 이하여야 해요.',
+        'string' => ':attribute은(는) :max자 이하여야 해요.',
+        'array' => ':attribute은(는) :max개 이하여야 해요.',
+    ],
+    'min' => [
+        'numeric' => ':attribute은(는) :min 이상이어야 해요.',
+        'file' => ':attribute은(는) :min KB 이상이어야 해요.',
+        'string' => ':attribute은(는) :min자 이상이어야 해요.',
+        'array' => ':attribute은(는) :min개 이상이어야 해요.',
+    ],
+    'required' => ':attribute을(를) 입력해 주세요.',
+    'required_if' => ':attribute을(를) 입력해 주세요.',
+    'size' => [
+        'string' => ':attribute은(는) :size자여야 해요.',
+    ],
+    'string' => ':attribute 형식이 올바르지 않아요.',
+
+    'attributes' => [
+        'agreed' => '계약 내용',
+        'signature' => '서명',
+        'code' => '인증번호',
+        'phone' => '휴대폰 번호',
+        'name' => '이름',
+        'brand' => '브랜드',
+        'organizer' => '주관사',
+        'contact' => '연락처',
+        'title' => '제목',
+        'startDate' => '시작일',
+        'endDate' => '종료일',
+        'startTime' => '시작 시간',
+        'endTime' => '종료 시간',
+        'pay' => '시급',
+        'headcount' => '인원',
+        'note' => '내용',
+        'photo' => '사진',
+    ],
+];

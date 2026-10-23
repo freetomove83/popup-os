@@ -12,6 +12,8 @@ import { Cell, Table } from "@/components/ui/table";
 import { useIsNarrow } from "@/hooks/useMediaQuery";
 import { useScreenState } from "@/hooks/useScreenState";
 import type { AdminNavKey } from "@/components/layout/admin-shell";
+import type { Dashboard } from "@/data/admin";
+import { useApi, won } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 function AttendCell({ n, of, warn }: { n: number; of: number; warn?: boolean }) {
@@ -39,38 +41,49 @@ export function DashboardScreen({
 }: {
   onNavigate?: (key: AdminNavKey) => void;
 }) {
-  const state = useScreenState();
+  const q = useApi<Dashboard>("/admin/dashboard");
+  const d = q.data;
+  const state = useScreenState(q, !!d && d.sites.length === 0);
   const narrow = useIsNarrow();
+  const k = d?.kpis;
 
   const kpis = [
-    { label: "진행 중 프로젝트", value: "3", sub: "이번 주 종료 1", tone: "brand" as Tone, icon: "FolderKanban" },
-    { label: "오늘 출근", value: "42", unit: "/48", sub: "지각 2 · 미출근 4", tone: "success" as Tone, pulse: true, icon: "UserCheck", zeroSub: "오늘 예정 인원 없음" },
-    { label: "서명 대기 계약", value: "7", sub: "재발송 필요 2", icon: "FileSignature", zeroSub: "대기 중인 계약 없음" },
-    { label: "이번 주 정산 예정", value: "₩6.24M", sub: "대상 48명", icon: "Wallet", zero: "₩0", zeroSub: "대상 0명" },
+    { label: "진행 중 프로젝트", value: k?.activeProjects ?? 0, sub: `이번 주 종료 ${k?.endingThisWeek ?? 0}`, tone: "brand" as Tone, icon: "FolderKanban" },
+    { label: "오늘 출근", value: k?.attended ?? 0, unit: `/${k?.expected ?? 0}`, sub: `지각 ${k?.late ?? 0} · 미출근 ${k?.absent ?? 0}`, tone: "success" as Tone, pulse: true, icon: "UserCheck", zeroSub: "오늘 예정 인원 없음" },
+    { label: "서명 대기 계약", value: k?.unsigned ?? 0, sub: k?.expiring ? `만료 임박 ${k.expiring}` : "만료 임박 없음", icon: "FileSignature", zeroSub: "대기 중인 계약 없음" },
+    { label: "정산 예정", value: `₩${won(k?.payable ?? 0)}`, sub: `대상 ${k?.payableCount ?? 0}명`, icon: "Wallet", zero: "₩0", zeroSub: "대상 0명" },
   ];
 
-  const rows = [
-    { site: <Cell title="무드랩 MOMENT POPUP" sub="더현대 서울 5F" />, pos: "운영 12", att: <AttendCell n={11} of={12} />, con: <span className="tabular font-semibold">12/12</span>, st: <Badge tone="success">정상</Badge> },
-    { site: <Cell title="뉴욕의 거장들" sub="롯데백화점 잠실" />, pos: "서버 8", att: <AttendCell n={7} of={8} />, con: <span className="tabular font-semibold">8/8</span>, st: <Badge tone="warning">지각 1</Badge> },
-    {
-      site: <Cell title="퍼스트 라운딩" sub="성수 팝업존" />,
-      pos: "상하차 6",
-      att: <AttendCell n={4} of={6} warn />,
-      con: (
-        <span className="tabular font-semibold text-warning-700 inline-flex items-center gap-1">
-          <Icon name="Clock" size={13} />5/6
-        </span>
-      ),
-      st: <Badge tone="danger" icon="UserX">미출근 2</Badge>,
-      _hl: true,
-    },
-  ];
+  const rows = (d?.sites ?? []).map(r => ({
+    site: <Cell title={r.title} sub={r.venue} />,
+    pos: r.positions,
+    att: r.expected ? <AttendCell n={r.attended} of={r.expected} warn={r.absent > 0} /> : <span className="text-subtle">근무자 없음</span>,
+    con: (
+      <span className={cn("tabular font-semibold", r.signed < r.contracts && "text-warning-700")}>
+        {r.signed}/{r.contracts}
+      </span>
+    ),
+    st: r.absent ? (
+      <Badge tone="danger" icon="UserX">미출근 {r.absent}</Badge>
+    ) : r.late ? (
+      <Badge tone="warning">지각 {r.late}</Badge>
+    ) : (
+      <Badge tone="success">정상</Badge>
+    ),
+    _hl: r.absent > 0,
+  }));
 
-  const todo: { tone: Tone; icon: string; title: string; desc: string }[] = [
-    { tone: "warning", icon: "UserX", title: "미출근 2명", desc: "퍼스트 라운딩 상하차. 대체 인력 매칭 필요" },
-    { tone: "info", icon: "FileSignature", title: "서명 미완료 7건", desc: "알림톡 재발송 가능" },
-    { tone: "brand", icon: "Wallet", title: "정산 마감 임박", desc: "무드랩 10/07 종료, 정산서 발행 대기" },
-  ];
+  const todo = d?.todo ?? [];
+  const open = (to: AdminNavKey, projectId?: number) => {
+    if (projectId) {
+      const url = new URL(window.location.href);
+      url.searchParams.set("project", String(projectId));
+      window.history.replaceState(null, "", url.toString());
+    }
+    onNavigate?.(to);
+  };
+
+  const today = new Date().toLocaleDateString("ko-KR", { month: "numeric", day: "numeric", weekday: "short" });
 
   const body =
     state === "loading" ? (
@@ -83,7 +96,7 @@ export function DashboardScreen({
         title="오늘 운영 중인 현장이 없어요"
         desc="새 프로젝트를 만들고 포지션을 등록하면 이곳에서 현장별 출근·계약 현황을 실시간으로 볼 수 있어요."
         action={
-          <Button size="sm" icon="Plus" onClick={() => onNavigate?.("project")}>
+          <Button size="sm" icon="Plus" onClick={() => onNavigate?.("postings")}>
             새 프로젝트
           </Button>
         }
@@ -92,7 +105,7 @@ export function DashboardScreen({
       <Table
         cols={[
           { key: "site", label: "현장" },
-          { key: "pos", label: "포지션", width: 90 },
+          { key: "pos", label: <span className="whitespace-nowrap">포지션</span>, width: 110, className: "whitespace-nowrap" },
           { key: "att", label: "출근", width: narrow ? 120 : 150 },
           { key: "con", label: "계약", width: 80 },
           { key: "st", label: "상태", width: 110 },
@@ -109,9 +122,11 @@ export function DashboardScreen({
         actions={
           <>
             <Button variant="outline" size="sm" icon="CalendarDays">
-              오늘 · 10/05 (일)
+              오늘 · {today}
             </Button>
-            <Button icon="Plus">새 프로젝트</Button>
+            <Button icon="Plus" onClick={() => onNavigate?.("postings")}>
+              새 프로젝트
+            </Button>
           </>
         }
       />
@@ -136,7 +151,7 @@ export function DashboardScreen({
           {body}
         </Card>
         <Card>
-          <CardHeader title="처리 필요" hint={state === "default" ? "3건" : undefined} />
+          <CardHeader title="처리 필요" hint={state === "default" && todo.length ? `${todo.length}건` : undefined} />
           {state === "loading" ? (
             <div className="p-[18px] space-y-3">
               {[0, 1, 2].map(i => (
@@ -151,7 +166,7 @@ export function DashboardScreen({
             </div>
           ) : state === "error" ? (
             <ErrorState title="불러오지 못했어요" desc="잠시 후 다시 시도해 주세요." className="py-9" />
-          ) : state === "empty" ? (
+          ) : state === "empty" || todo.length === 0 ? (
             <EmptyState
               icon="CircleCheckBig"
               title="처리할 항목이 없어요"
@@ -164,6 +179,7 @@ export function DashboardScreen({
                 <li key={i}>
                   <button
                     type="button"
+                    onClick={() => open(t.to, t.projectId)}
                     className="w-full flex items-start gap-3 p-2.5 rounded-lg hover:bg-surface-2 cursor-pointer group text-left"
                   >
                     <span

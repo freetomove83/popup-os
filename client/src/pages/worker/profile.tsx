@@ -2,24 +2,19 @@ import * as React from "react";
 import { toast } from "sonner";
 
 import { Icon } from "@/components/icon";
-import { KV } from "@/components/kv";
 import { WorkerFrame, WorkerHeader } from "@/components/layout/worker-frame";
 import { Note } from "@/components/ui/alert";
 import { Badge, Tag } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Field, Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { AddCareerDrawer, CareerTimeline } from "@/components/worker/career-timeline";
-import { WORKERS, type WorkRecord } from "@/data/workers";
+import type { MyProfile } from "@/data/worker-app";
+import { useRequireWorker } from "@/hooks/useRequireWorker";
+import { api, session, useAction, useApi } from "@/lib/api";
 import { heightLabel, weightLabel } from "@/lib/body";
 import { maskHandle, maskPhone } from "@/lib/mask";
 import { cn } from "@/lib/utils";
-
-const STATS: { label: string; value: string; tone?: string; note?: string }[] = [
-  { label: "노쇼율", value: "0%", tone: "success", note: "표본 28건" },
-  { label: "완료 건수", value: "31" },
-  { label: "재고용률", value: "92%", tone: "brand", note: "실제 재고용 23/25" },
-  { label: "지각률", value: "3%", tone: "warning" },
-];
 
 const valCls: Record<string, string> = {
   success: "text-success-700",
@@ -28,58 +23,127 @@ const valCls: Record<string, string> = {
   danger: "text-danger-700",
 };
 
+type Form = {
+  name: string;
+  gender: string;
+  age: string;
+  area: string;
+  available: string;
+  bio: string;
+  height: string;
+  weight: string;
+  instagram: string;
+  tags: MyProfile["tags"];
+};
+
+const toForm = (p: MyProfile): Form => ({
+  name: p.name ?? "",
+  gender: p.gender ?? "",
+  age: p.age ? String(p.age) : "",
+  area: p.area ?? "",
+  available: p.available ?? "",
+  bio: p.bio ?? "",
+  height: p.height ? String(p.height) : "",
+  weight: p.weight ? String(p.weight) : "",
+  instagram: p.instagram ?? "",
+  tags: p.tags,
+});
+
+const PHOTO_BADGE = {
+  pending: { tone: "warning" as const, icon: "Clock", text: "사진 검수 대기" },
+  rejected: { tone: "danger" as const, icon: "ImageOff", text: "사진 반려됨" },
+};
+
 export default function WorkerProfile() {
+  const authed = useRequireWorker();
   const onboarding =
     typeof window !== "undefined" &&
     new URLSearchParams(window.location.search).get("onboarding") === "1";
 
+  const q = useApi<MyProfile>(authed ? "/worker/me" : null);
+  const me = q.data;
+  const [f, setF] = React.useState<Form | null>(null);
+  React.useEffect(() => {
+    if (me && !f) setF(toForm(me));
+  }, [me, f]);
   const fileRef = React.useRef<HTMLInputElement>(null);
-  const [photoUrl, setPhotoUrl] = React.useState<string | null>(null);
-  const [photoPending, setPhotoPending] = React.useState(false);
-  const [height, setHeight] = React.useState("168");
-  const [weight, setWeight] = React.useState("52");
-  const [phone, setPhone] = React.useState("010-4821-7733");
-  const [sns, setSns] = React.useState("@jieun_kim");
-  const [career, setCareer] = React.useState<WorkRecord[]>(WORKERS[0].history);
-  const verifiedCount = career.filter(r => r.verified).length;
+  const [tagDraft, setTagDraft] = React.useState("");
 
-  const hNum = Number(height);
-  const wNum = Number(weight);
+  const save = useAction(
+    (form: Form) =>
+      api<MyProfile>("/worker/me", {
+        method: "PUT",
+        body: {
+          ...form,
+          gender: form.gender || null,
+          age: form.age ? Number(form.age) : null,
+          height: form.height ? Number(form.height) : null,
+          weight: form.weight ? Number(form.weight) : null,
+          instagram: form.instagram || null,
+        },
+      }),
+    "검카드를 저장했어요",
+  );
+  const upload = useAction(
+    (file: File) => {
+      const fd = new FormData();
+      fd.append("photo", file);
+      return api<MyProfile>("/worker/me/photo", { body: fd });
+    },
+    () => toast("사진 등록됨", { description: "관리자 검수 후 검카드에 노출됩니다." }),
+  );
+  const addRecord = useAction(
+    (r: { organizer: string; project: string; role: string; dates: string; evidence: boolean; visibility: string }) =>
+      api("/worker/records", { body: r }),
+    () =>
+      toast("외부 이력이 추가됐어요", {
+        description: "‘미인증’으로 표시되며, 주관사 확인 시 인증으로 전환됩니다.",
+      }),
+  );
+
+  if (!me || !f) {
+    return (
+      <WorkerFrame>
+        <WorkerHeader eyebrow="POPUP OS · 검카드" title="내 검카드" />
+        <div className="px-5 py-4 space-y-3">
+          {[90, 140, 160].map(h => (
+            <div key={h} className="rounded-card bg-surface-3 animate-pulse" style={{ height: h }} />
+          ))}
+        </div>
+      </WorkerFrame>
+    );
+  }
+
+  const set = (k: keyof Form) => (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.value });
+  const hNum = Number(f.height);
+  const wNum = Number(f.weight);
   const hValid = hNum >= 140 && hNum <= 210;
   const wValid = wNum >= 30 && wNum <= 150;
+  const verifiedCount = me.records.filter(r => r.verified).length;
+  const photoBadge = me.photoStatus === "pending" || me.photoStatus === "rejected" ? PHOTO_BADGE[me.photoStatus] : null;
 
-  const onPick = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    if (f) {
-      setPhotoUrl(URL.createObjectURL(f));
-      setPhotoPending(true);
-      toast("사진 등록됨", { description: "관리자 검수 후 검카드에 노출됩니다." });
-    }
+  const addTag = () => {
+    const label = tagDraft.trim().replace(/^#?/, "#");
+    if (label.length < 2 || f.tags.some(([, t]) => t === label)) return;
+    const kind = /어|語|english|영어|일어|중국어/i.test(label) ? "lang" : /POS|계산/i.test(label) ? "pos" : "default";
+    setF({ ...f, tags: [...f.tags, [kind, label]] });
+    setTagDraft("");
   };
+
+  const saveBtn = (
+    <Button variant="soft" size="sm" icon="Save" loading={save.isPending} disabled={!f.name.trim()} onClick={() => save.mutate(f)}>
+      저장
+    </Button>
+  );
 
   return (
     <WorkerFrame>
-      <WorkerHeader
-        eyebrow="POPUP OS · 검카드"
-        title="내 검카드"
-        action={
-          <Button
-            variant="soft"
-            size="sm"
-            icon="Save"
-            onClick={() =>
-              toast.success("검카드 저장됨", { description: "변경 사항이 저장되었어요(목업)." })
-            }
-          >
-            저장
-          </Button>
-        }
-      />
+      <WorkerHeader eyebrow="POPUP OS · 검카드" title="내 검카드" action={saveBtn} />
       <div className="px-5 py-4 space-y-4">
-        {onboarding && (
+        {(onboarding || !me.name) && (
           <Note tone="brand" icon="Sparkles" title="검카드를 완성해 주세요">
-            사진·태그·가능일·경력을 채우면 승인율이 올라가요. 신뢰 지표는 근무 이력이 쌓이면 자동으로
-            표시됩니다.
+            이름을 입력하고 저장해야 공고에 지원할 수 있어요. 사진·태그·경력을 채우면 승인율이
+            올라가요.
           </Note>
         )}
 
@@ -87,10 +151,10 @@ export default function WorkerProfile() {
         <div className="flex items-center gap-3.5">
           <div className="relative shrink-0">
             <div className="w-[76px] h-[76px] rounded-[22px] overflow-hidden bg-brand-50 grid place-items-center">
-              {photoUrl ? (
-                <img src={photoUrl} alt="검카드 사진" className="w-full h-full object-cover" />
+              {me.photoUrl ? (
+                <img src={me.photoUrl} alt="검카드 사진" className="w-full h-full object-cover" />
               ) : (
-                <span className="text-[26px] font-extrabold text-brand-700">김지</span>
+                <span className="text-[26px] font-extrabold text-brand-700">{(f.name || "?").slice(0, 2)}</span>
               )}
             </div>
             <button
@@ -101,37 +165,93 @@ export default function WorkerProfile() {
             >
               <Icon name="Camera" size={14} />
             </button>
-            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onPick} />
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={e => {
+                const file = e.target.files?.[0];
+                if (file) upload.mutate(file);
+                e.target.value = "";
+              }}
+            />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[18px] font-extrabold text-ink">김지은</span>
-              <Badge tone="success" icon="BadgeCheck">
-                본인인증 완료
-              </Badge>
-              {photoPending && (
-                <Badge tone="warning" icon="Clock">
-                  사진 검수 대기
+              <span className="text-[18px] font-extrabold text-ink">{me.name || "이름 미입력"}</span>
+              {me.verified && (
+                <Badge tone="success" icon="BadgeCheck">
+                  본인인증 완료
+                </Badge>
+              )}
+              {photoBadge && (
+                <Badge tone={photoBadge.tone} icon={photoBadge.icon}>
+                  {photoBadge.text}
                 </Badge>
               )}
             </div>
-            <div className="text-[12.5px] text-muted-foreground mt-1">여 · 28세 · 서울 마포</div>
+            <div className="text-[12.5px] text-muted-foreground mt-1 tabular">{maskPhone(me.phone)} · 로그인 번호</div>
             <button
               type="button"
               onClick={() => fileRef.current?.click()}
               className="text-[12px] font-bold text-brand-600 mt-1.5 inline-flex items-center gap-1"
             >
               <Icon name="ImagePlus" size={13} />
-              {photoUrl ? "사진 변경" : "사진 등록"}
+              {upload.isPending ? "업로드 중…" : me.photoUrl ? "사진 변경" : "사진 등록"}
             </button>
           </div>
         </div>
-        {photoPending && (
-          <Note tone="warning" compact icon="ShieldAlert">
-            사진은 <b className="text-warning-700">관리자 검수 후</b> 검카드에 노출됩니다. 부적절한
-            사진은 반려될 수 있어요.
+        {photoBadge && (
+          <Note tone={me.photoStatus === "rejected" ? "danger" : "warning"} compact icon="ShieldAlert">
+            {me.photoStatus === "rejected" ? (
+              <>사진이 반려됐어요. 얼굴이 잘 보이는 사진으로 다시 등록해 주세요.</>
+            ) : (
+              <>
+                사진은 <b className="text-warning-700">관리자 검수 후</b> 검카드에 노출됩니다. 부적절한
+                사진은 반려될 수 있어요.
+              </>
+            )}
           </Note>
         )}
+
+        {/* 기본 정보 */}
+        <div className="rounded-[14px] border border-line p-3.5 space-y-3">
+          <div className="flex items-center gap-2">
+            <Icon name="User" size={16} className="text-ink-3" />
+            <span className="text-[13px] font-bold text-ink">기본 정보</span>
+          </div>
+          <Field label="이름 (필수)">
+            <Input value={f.name} onChange={set("name")} placeholder="실명" />
+          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="성별">
+              <Select
+                value={f.gender}
+                onChange={v => setF({ ...f, gender: v })}
+                options={[
+                  { value: "", label: "선택" },
+                  { value: "여", label: "여" },
+                  { value: "남", label: "남" },
+                ]}
+              />
+            </Field>
+            <Field label="나이">
+              <Input type="number" inputMode="numeric" value={f.age} onChange={set("age")} />
+            </Field>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="활동 지역">
+              <Input value={f.area} onChange={set("area")} placeholder="서울 마포" />
+            </Field>
+            <Field label="가능일">
+              <Input value={f.available} onChange={set("available")} placeholder="주말 전체" />
+            </Field>
+          </div>
+          <Field label="자기소개" hint="전화번호·SNS는 적을 수 없어요">
+            <Input value={f.bio} onChange={set("bio")} placeholder="경력·강점을 한두 줄로" />
+          </Field>
+        </div>
 
         {/* 신체 조건 */}
         <div className="rounded-[14px] border border-line p-3.5">
@@ -146,9 +266,9 @@ export default function WorkerProfile() {
               <Input
                 type="number"
                 inputMode="numeric"
-                value={height}
-                onChange={e => setHeight(e.target.value)}
-                className={cn(!hValid && height !== "" && "border-danger")}
+                value={f.height}
+                onChange={set("height")}
+                className={cn(!hValid && f.height !== "" && "border-danger")}
               />
               <span className="block text-[11px] text-muted-foreground mt-1.5">
                 표시: <b className="text-ink-2 tabular">{hValid ? heightLabel(hNum) : "—"}</b>
@@ -161,9 +281,9 @@ export default function WorkerProfile() {
               <Input
                 type="number"
                 inputMode="numeric"
-                value={weight}
-                onChange={e => setWeight(e.target.value)}
-                className={cn(!wValid && weight !== "" && "border-danger")}
+                value={f.weight}
+                onChange={set("weight")}
+                className={cn(!wValid && f.weight !== "" && "border-danger")}
               />
               <span className="block text-[11px] text-muted-foreground mt-1.5">
                 표시: <b className="text-ink-2 tabular">{wValid ? weightLabel(wNum) : "—"}</b>
@@ -186,40 +306,25 @@ export default function WorkerProfile() {
           <div className="space-y-3">
             <div>
               <span className="block text-[11.5px] font-semibold text-ink-2 mb-1.5">휴대폰</span>
-              <Input
-                icon="Phone"
-                inputMode="numeric"
-                value={phone}
-                onChange={e => setPhone(e.target.value)}
-                placeholder="010-0000-0000"
-              />
+              <Input icon="Phone" value={me.phone} disabled />
               <span className="block text-[11px] text-muted-foreground mt-1.5">
-                검카드 표시:{" "}
-                <b className="text-ink-2 tabular">{phone ? maskPhone(phone) : "—"}</b>
+                검카드 표시: <b className="text-ink-2 tabular">{maskPhone(me.phone)}</b>
               </span>
             </div>
             <div>
               <span className="block text-[11.5px] font-semibold text-ink-2 mb-1.5">
                 인스타그램 (선택)
               </span>
-              <Input
-                icon="AtSign"
-                value={sns}
-                onChange={e => setSns(e.target.value)}
-                placeholder="@handle"
-              />
+              <Input icon="AtSign" value={f.instagram} onChange={set("instagram")} placeholder="@handle" />
               <span className="block text-[11px] text-muted-foreground mt-1.5">
                 검카드 표시:{" "}
-                <b className="text-ink-2 tabular">{sns ? maskHandle(sns) : "—"}</b>
+                <b className="text-ink-2 tabular">{f.instagram ? maskHandle(f.instagram) : "—"}</b>
               </span>
             </div>
           </div>
           <Note tone="info" compact className="mt-3">
             입력한 연락처는 <b className="text-info-700">자동 마스킹</b>되어 대행사에 그대로 보이지
             않습니다. 연락은 Popup OS 안에서만 이루어져요.
-          </Note>
-          <Note tone="warning" compact className="mt-2">
-            검카드 본문(자기소개 등)에 전화번호·SNS를 직접 적으면 승인이 거부될 수 있어요.
           </Note>
         </div>
 
@@ -229,7 +334,7 @@ export default function WorkerProfile() {
             신뢰 지표
           </div>
           <div className="grid grid-cols-4 rounded-[14px] border border-line bg-surface-2/60 divide-x divide-line">
-            {STATS.map((s, i) => (
+            {me.stats.map((s, i) => (
               <div key={i} className="px-2.5 py-2.5">
                 <div className="text-[10.5px] font-semibold text-muted-foreground">{s.label}</div>
                 <div
@@ -256,16 +361,16 @@ export default function WorkerProfile() {
                 커리어 타임라인
               </span>
               <span className="text-[11px] font-semibold text-muted-foreground tabular">
-                인증 {verifiedCount} · 외부 {career.length - verifiedCount}
+                인증 {verifiedCount} · 외부 {me.records.length - verifiedCount}
               </span>
             </div>
-            <AddCareerDrawer onAdd={r => setCareer(prev => [r, ...prev])} />
+            <AddCareerDrawer onAdd={r => addRecord.mutate({ ...r, evidence: !!r.evidence })} />
           </div>
-          <CareerTimeline records={career} />
+          <CareerTimeline records={me.records} />
           <Note tone="info" compact className="mt-2">
-            Popup OS 행사 근무는 <b className="text-info-700">인증 이력</b>으로 자동 기록되고, 다른
-            주관사 행사는 직접 추가해 <b className="text-info-700">미인증</b>으로 표시돼요. 미인증
-            이력은 신뢰 지표에 반영되지 않습니다.
+            Popup OS 행사 근무는 정산이 끝나면 <b className="text-info-700">인증 이력</b>으로 자동
+            기록되고, 다른 주관사 행사는 직접 추가해 <b className="text-info-700">미인증</b>으로
+            표시돼요. 미인증 이력은 신뢰 지표에 반영되지 않습니다.
           </Note>
         </div>
 
@@ -275,63 +380,50 @@ export default function WorkerProfile() {
             보유 태그·스킬
           </div>
           <div className="flex flex-wrap gap-1.5">
-            <Tag kind="pos">#POS숙달</Tag>
-            <Tag kind="pos">#프로모터 경력 2년</Tag>
-            <Tag kind="lang">#일어가능</Tag>
-            <Tag kind="default">#응대</Tag>
-            <Tag kind="default">#재고정리</Tag>
-            <button
-              type="button"
-              onClick={() =>
-                toast("태그 추가", { description: "태그 선택 화면은 다음 단계에서 연결됩니다." })
-              }
-              className="inline-flex items-center gap-1 h-[22px] px-2 rounded-sm border border-dashed border-line-2 text-ink-3 text-[11px] font-semibold"
-            >
-              <Icon name="Plus" size={11} />
-              추가
-            </button>
+            {f.tags.map(([kind, label]) => (
+              <button
+                key={label}
+                type="button"
+                title="눌러서 삭제"
+                onClick={() => setF({ ...f, tags: f.tags.filter(([, t]) => t !== label) })}
+              >
+                <Tag kind={kind}>{label} ×</Tag>
+              </button>
+            ))}
           </div>
-        </div>
-
-        {/* 기본 정보 */}
-        <div className="rounded-[14px] border border-line overflow-hidden">
-          <div className="px-4">
-            <KV
-              size="lg"
-              rows={[
-                ["활동 지역", "서울 · 경기"],
-                ["가능 요일", "월~일 (주말 가능)"],
-                ["가능 시간", "종일"],
-                ["경력", "팝업·행사 스태프 2년"],
-                ["포트폴리오", "notion.so/… (링크 1개)"],
-              ]}
+          <div className="flex gap-2 mt-2">
+            <Input
+              value={tagDraft}
+              onChange={e => setTagDraft(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && addTag()}
+              placeholder="#재고정리"
+              className="flex-1"
             />
+            <Button variant="outline" icon="Plus" onClick={addTag}>
+              추가
+            </Button>
           </div>
         </div>
 
         <Note tone="info" icon="ShieldCheck" title="신뢰 지표는 어떻게 쌓이나요?">
-          플랫폼 내 전자계약 + 출퇴근 기록이 있는 근무만 반영됩니다. 노쇼·지각은 관리자 확인을 거쳐
-          기록되고, 이의신청으로 정정할 수 있어요.
+          플랫폼 내 전자계약 + 출퇴근 기록이 있는 근무만 반영됩니다. 노쇼·지각은 출퇴근 로그로
+          기록되고, 정산 이의신청으로 정정을 요청할 수 있어요.
         </Note>
 
-        <Note tone="brand" icon="IdCard" title="공개 프로필로도 쓸 수 있어요">
-          검카드는 Popup OS 밖에서도 <b className="text-brand-700">이력서처럼</b> 공유할 수 있어요.
-          이력별 공개 범위(전체·링크·비공개)는 커리어 타임라인에서 설정합니다.
-        </Note>
-
-        <Button
-          variant="outline"
-          size="xl"
-          block
-          icon="Share2"
-          onClick={() =>
-            toast("공개 프로필 링크 복사됨", {
-              description: "onoff.link/p/kimjieun — 링크 받은 사람은 검카드·커리어를 볼 수 있어요.",
-            })
-          }
-        >
-          공개 프로필 링크 공유
+        <Button size="xl" block icon="Save" loading={save.isPending} disabled={!f.name.trim()} onClick={() => save.mutate(f)}>
+          검카드 저장
         </Button>
+        <button
+          type="button"
+          onClick={async () => {
+            await api("/worker/logout", { method: "POST" }).catch(() => undefined);
+            session.clear("worker");
+            window.location.assign("/worker/login");
+          }}
+          className="w-full text-[12.5px] font-semibold text-muted-foreground py-2"
+        >
+          로그아웃
+        </button>
       </div>
     </WorkerFrame>
   );

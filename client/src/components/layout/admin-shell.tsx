@@ -4,6 +4,7 @@ import { Mark, Wordmark } from "@/components/brand";
 import { Icon } from "@/components/icon";
 import { Avatar } from "@/components/ui/avatar";
 import { useIsNarrow } from "@/hooks/useMediaQuery";
+import { api, session } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 export type AdminNavKey =
@@ -50,6 +51,12 @@ function Sidebar({
   rail: boolean;
   onNavigate?: (key: AdminNavKey) => void;
 }) {
+  const adminName = session.get("admin")?.name ?? "관리자";
+  const logout = async () => {
+    await api("/admin/logout", { method: "POST" }).catch(() => undefined);
+    session.clear("admin");
+    window.location.assign("/admin/login");
+  };
   return (
     <aside
       className={cn(
@@ -122,14 +129,24 @@ function Sidebar({
           rail ? "justify-center" : "px-1.5",
         )}
       >
-        <Avatar initials="김" size={32} tone="dark" round />
+        <Avatar initials={adminName.slice(0, 1)} size={32} tone="dark" round />
         {!rail && (
           <div className="min-w-0 flex-1">
-            <div className="text-[12.5px] font-bold text-white">김매니저</div>
+            <div className="text-[12.5px] font-bold text-white truncate">{adminName}</div>
             <div className="text-[11px] text-sidebar-muted">대행사 관리자</div>
           </div>
         )}
-        {!rail && <Icon name="ChevronsUpDown" size={15} className="text-sidebar-muted" />}
+        {!rail && (
+          <button
+            type="button"
+            title="로그아웃"
+            aria-label="로그아웃"
+            onClick={logout}
+            className="grid place-items-center w-8 h-8 rounded-md text-sidebar-muted hover:bg-sidebar-accent hover:text-white"
+          >
+            <Icon name="LogOut" size={15} />
+          </button>
+        )}
       </div>
     </aside>
   );

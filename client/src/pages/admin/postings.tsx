@@ -14,8 +14,8 @@ import { Field, Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Table } from "@/components/ui/table";
 import { useScreenState } from "@/hooks/useScreenState";
-import { maskPhone } from "@/lib/mask";
-import { POSTINGS, type AdminPosting, type ClaimStatus, type PostingStatus } from "@/data/postings";
+import type { AdminPosting, ClaimStatus, PostingStatus } from "@/data/postings";
+import { api, useAction, useApi } from "@/lib/api";
 
 const STATUS_TONE: Record<PostingStatus, "brand" | "warning" | "neutral"> = {
   모집중: "brand",
@@ -35,11 +35,9 @@ const CLAIM_META: Record<
 function NewPostingDrawer({
   open,
   onOpenChange,
-  onAdd,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAdd: (posting: AdminPosting) => void;
 }) {
   const today = new Date().toISOString().slice(0, 10);
   const [brand, setBrand] = React.useState("");
@@ -47,7 +45,8 @@ function NewPostingDrawer({
   const [contact, setContact] = React.useState("");
   const [title, setTitle] = React.useState("");
   const [venue, setVenue] = React.useState("");
-  const [period, setPeriod] = React.useState("");
+  const [startDate, setStartDate] = React.useState("");
+  const [endDate, setEndDate] = React.useState("");
   const [role, setRole] = React.useState("");
   const [headcount, setHeadcount] = React.useState("");
   const [pay, setPay] = React.useState("");
@@ -55,7 +54,8 @@ function NewPostingDrawer({
   const [date, setDate] = React.useState(today);
   const [agreed, setAgreed] = React.useState(false);
 
-  const valid = brand.trim() && organizer.trim() && contact.trim() && title.trim() && agreed;
+  const valid =
+    brand.trim() && organizer.trim() && contact.trim() && title.trim() && startDate && endDate && agreed;
 
   const reset = () => {
     setBrand("");
@@ -63,7 +63,8 @@ function NewPostingDrawer({
     setContact("");
     setTitle("");
     setVenue("");
-    setPeriod("");
+    setStartDate("");
+    setEndDate("");
     setRole("");
     setHeadcount("");
     setPay("");
@@ -72,33 +73,33 @@ function NewPostingDrawer({
     setAgreed(false);
   };
 
-  const submit = () => {
-    if (!valid) return;
-    const n = Number(headcount) || 1;
-    onAdd({
-      id: `p-${Date.now()}`,
-      brand: brand.trim(),
-      organizer: organizer.trim(),
-      contact: contact.trim(),
-      consent: { agreed, method, date },
-      postedBy: "operator",
-      claimStatus: "unclaimed",
-      title: title.trim(),
-      venue: venue.trim() || "미정",
-      period: period.trim() || "미정",
-      dday: 14,
-      status: "모집중",
-      roles: role.trim() ? 1 : 0,
-      headcount: n,
-      filled: 0,
-      applicants: 0,
-    });
-    toast.success("공고를 등록했어요", {
-      description: "‘미claim’ 상태입니다. 주관사에 합류 초대를 보내 소유권을 이전하세요.",
-    });
-    onOpenChange(false);
-    reset();
-  };
+  const save = useAction(
+    () =>
+      api("/admin/projects", {
+        body: {
+          brand: brand.trim(),
+          organizer: organizer.trim(),
+          contact: contact.trim(),
+          title: title.trim(),
+          venue: venue.trim(),
+          startDate,
+          endDate,
+          postedBy: "operator",
+          consent: { agreed, method, date },
+          role: role.trim() || undefined,
+          headcount: headcount ? Number(headcount) : undefined,
+          pay: pay ? Number(pay) : undefined,
+        },
+      }),
+    () => {
+      toast.success("공고를 등록했어요", {
+        description: "‘미claim’ 상태입니다. 주관사에 합류 초대를 보내 소유권을 이전하세요.",
+      });
+      onOpenChange(false);
+      reset();
+    },
+  );
+  const submit = () => valid && save.mutate();
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
@@ -115,7 +116,7 @@ function NewPostingDrawer({
                 icon="Store"
                 value={brand}
                 onChange={e => setBrand(e.target.value)}
-                placeholder="예: 무신사 스탠다드"
+                placeholder="예: 어반핏 스탠다드"
               />
             </Field>
             <Field label="주관사 법인·단체명">
@@ -123,7 +124,7 @@ function NewPostingDrawer({
                 icon="Building2"
                 value={organizer}
                 onChange={e => setOrganizer(e.target.value)}
-                placeholder="예: (주)무신사"
+                placeholder="예: (주)어반핏"
               />
             </Field>
           </div>
@@ -158,13 +159,14 @@ function NewPostingDrawer({
                 placeholder="예: 성수 팝업존 B동"
               />
             </Field>
-            <Field label="근무 기간">
-              <Input
-                value={period}
-                onChange={e => setPeriod(e.target.value)}
-                placeholder="2026.10.10~10.19"
-              />
-            </Field>
+            <div className="grid grid-cols-2 gap-2">
+              <Field label="시작일">
+                <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+              </Field>
+              <Field label="종료일">
+                <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
+              </Field>
+            </div>
           </div>
 
           <div className="grid grid-cols-3 gap-3">
@@ -243,7 +245,7 @@ function NewPostingDrawer({
               취소
             </Button>
           </DrawerClose>
-          <Button size="lg" block icon="Megaphone" disabled={!valid} onClick={submit}>
+          <Button size="lg" block icon="Megaphone" disabled={!valid} loading={save.isPending} onClick={submit}>
             공고 등록
           </Button>
         </div>
@@ -253,8 +255,9 @@ function NewPostingDrawer({
 }
 
 export function PostingsScreen({ onNavigate }: { onNavigate?: (key: AdminNavKey) => void }) {
-  const state = useScreenState();
-  const [rows, setRows] = React.useState<AdminPosting[]>(POSTINGS);
+  const q = useApi<AdminPosting[]>("/admin/projects");
+  const rows = q.data ?? [];
+  const state = useScreenState(q, rows.length === 0);
   const [open, setOpen] = React.useState(
     typeof window !== "undefined" &&
       new URLSearchParams(window.location.search).get("new") === "1",
@@ -264,14 +267,13 @@ export function PostingsScreen({ onNavigate }: { onNavigate?: (key: AdminNavKey)
   const invited = rows.filter(r => r.claimStatus === "invited").length;
   const operatorCount = rows.filter(r => r.postedBy === "operator").length;
 
-  const invite = (id: string) => {
-    setRows(prev =>
-      prev.map(r => (r.id === id ? { ...r, claimStatus: "invited" as ClaimStatus } : r)),
-    );
-    toast("주관사 초대 발송", {
-      description: "알림톡·이메일로 합류 초대를 보냈어요. 합류 시 소유권이 이전됩니다.",
-    });
-  };
+  const invite = useAction(
+    (id: string) => api(`/admin/projects/${id}/invite`, { method: "POST" }),
+    () =>
+      toast("주관사 초대 발송", {
+        description: "알림톡·이메일로 합류 초대를 보냈어요. 합류 시 소유권이 이전됩니다.",
+      }),
+  );
 
   const table =
     state === "loading" ? (
@@ -327,7 +329,7 @@ export function PostingsScreen({ onNavigate }: { onNavigate?: (key: AdminNavKey)
               <div className="min-w-0">
                 <div className="text-[13px] font-semibold text-ink-2 truncate">{p.organizer}</div>
                 <div className="text-caption text-muted-foreground tabular">
-                  {maskPhone(p.contact)}
+                  {p.contact}
                 </div>
               </div>
             ),
@@ -354,7 +356,8 @@ export function PostingsScreen({ onNavigate }: { onNavigate?: (key: AdminNavKey)
                   size="sm"
                   variant={p.claimStatus === "unclaimed" ? "soft" : "outline"}
                   icon={p.claimStatus === "unclaimed" ? "UserPlus" : "RotateCw"}
-                  onClick={() => invite(p.id)}
+                  loading={invite.isPending && invite.variables === p.id}
+                  onClick={() => invite.mutate(p.id)}
                 >
                   {p.claimStatus === "unclaimed" ? "주관사 초대" : "초대 재발송"}
                 </Button>
@@ -436,11 +439,7 @@ export function PostingsScreen({ onNavigate }: { onNavigate?: (key: AdminNavKey)
         {table}
       </Card>
 
-      <NewPostingDrawer
-        open={open}
-        onOpenChange={setOpen}
-        onAdd={p => setRows(prev => [p, ...prev])}
-      />
+      <NewPostingDrawer open={open} onOpenChange={setOpen} />
     </AdminShell>
   );
 }
