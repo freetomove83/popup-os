@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Drawer, DrawerClose, DrawerContent } from "@/components/ui/drawer";
+import { Dialog } from "@/components/ui/dialog";
 import { Field, Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Table } from "@/components/ui/table";
@@ -102,37 +102,42 @@ function NewPostingDrawer({
   const submit = () => valid && save.mutate();
 
   return (
-    <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="left-1/2 right-auto -translate-x-1/2 w-full max-w-[520px] max-h-[88dvh] overflow-y-auto">
-        <div className="text-[17px] font-extrabold text-ink">대행 등록 — 새 공고</div>
-        <p className="text-[12.5px] text-muted-foreground mt-1">
-          주관사 동의를 받은 공고를 더블엠이 대신 등록합니다. 등록자: 운영팀(김매니저).
-        </p>
-
-        <div className="space-y-3.5 mt-4">
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="주관사·브랜드 (노출명)">
-              <Input
-                icon="Store"
-                value={brand}
-                onChange={e => setBrand(e.target.value)}
-                placeholder="예: 어반핏 스탠다드"
-              />
-            </Field>
-            <Field label="주관사 법인·단체명">
-              <Input
-                icon="Building2"
-                value={organizer}
-                onChange={e => setOrganizer(e.target.value)}
-                placeholder="예: (주)어반핏"
-              />
-            </Field>
-          </div>
-
-          <Field
-            label="담당자 연락처"
-            hint="등록 화면에서만 원문 확인 · 워커에게는 마스킹 표시"
-          >
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+      width={760}
+      title="대행 등록 — 새 공고"
+      description="주관사 동의를 받은 공고를 더블엠이 대신 등록합니다."
+      footer={
+        <>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            취소
+          </Button>
+          <Button icon="Megaphone" disabled={!valid} loading={save.isPending} onClick={submit}>
+            공고 등록
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        <div className="grid grid-cols-3 gap-3">
+          <Field label="주관사·브랜드 (노출명)">
+            <Input
+              icon="Store"
+              value={brand}
+              onChange={e => setBrand(e.target.value)}
+              placeholder="예: 어반핏 스탠다드"
+            />
+          </Field>
+          <Field label="주관사 법인·단체명">
+            <Input
+              icon="Building2"
+              value={organizer}
+              onChange={e => setOrganizer(e.target.value)}
+              placeholder="예: (주)어반핏"
+            />
+          </Field>
+          <Field label="담당자 연락처 (워커에겐 마스킹)">
             <Input
               icon="Phone"
               inputMode="numeric"
@@ -141,116 +146,104 @@ function NewPostingDrawer({
               placeholder="010-0000-0000"
             />
           </Field>
+        </div>
 
-          <Field label="행사·공고 제목">
+        <Field label="행사·공고 제목">
+          <Input
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+            placeholder="예: 성수 팝업 판매·응대 스태프"
+          />
+        </Field>
+
+        <div className="grid grid-cols-3 gap-3">
+          <Field label="근무지">
             <Input
-              value={title}
-              onChange={e => setTitle(e.target.value)}
-              placeholder="예: 성수 팝업 판매·응대 스태프"
+              icon="MapPin"
+              value={venue}
+              onChange={e => setVenue(e.target.value)}
+              placeholder="예: 성수 팝업존 B동"
             />
           </Field>
+          <Field label="시작일">
+            <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+          </Field>
+          <Field label="종료일">
+            <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
+          </Field>
+        </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="근무지">
-              <Input
-                icon="MapPin"
-                value={venue}
-                onChange={e => setVenue(e.target.value)}
-                placeholder="예: 성수 팝업존 B동"
-              />
-            </Field>
-            <div className="grid grid-cols-2 gap-2">
-              <Field label="시작일">
-                <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
-              </Field>
-              <Field label="종료일">
-                <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
-              </Field>
-            </div>
+        <div className="grid grid-cols-3 gap-3">
+          <Field label="역할">
+            <Input
+              value={role}
+              onChange={e => setRole(e.target.value)}
+              placeholder="판매 스태프"
+            />
+          </Field>
+          <Field label="인원">
+            <Input
+              type="number"
+              inputMode="numeric"
+              value={headcount}
+              onChange={e => setHeadcount(e.target.value)}
+              placeholder="12"
+            />
+          </Field>
+          <Field label="시급 (원)">
+            <Input
+              type="number"
+              inputMode="numeric"
+              value={pay}
+              onChange={e => setPay(e.target.value)}
+              placeholder="12000"
+            />
+          </Field>
+        </div>
+
+        <div className="rounded-[14px] border border-line p-3.5">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-[13px] font-bold text-ink">주관사 동의 기록</span>
+            <Badge tone="danger" icon="ShieldAlert">
+              필수
+            </Badge>
           </div>
-
           <div className="grid grid-cols-3 gap-3">
-            <Field label="역할">
-              <Input
-                value={role}
-                onChange={e => setRole(e.target.value)}
-                placeholder="판매 스태프"
+            <Field label="동의 방식">
+              <Select
+                value={method}
+                onChange={v => setMethod(v as "구두" | "이메일" | "서면")}
+                options={[
+                  { value: "구두", label: "구두" },
+                  { value: "이메일", label: "이메일" },
+                  { value: "서면", label: "서면" },
+                ]}
               />
             </Field>
-            <Field label="인원">
-              <Input
-                type="number"
-                inputMode="numeric"
-                value={headcount}
-                onChange={e => setHeadcount(e.target.value)}
-                placeholder="12"
-              />
-            </Field>
-            <Field label="시급 (원)">
-              <Input
-                type="number"
-                inputMode="numeric"
-                value={pay}
-                onChange={e => setPay(e.target.value)}
-                placeholder="12000"
-              />
+            <Field label="동의일">
+              <Input type="date" value={date} onChange={e => setDate(e.target.value)} />
             </Field>
           </div>
-
-          <div className="rounded-[14px] border border-line p-3.5">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-[13px] font-bold text-ink">주관사 동의 기록</span>
-              <Badge tone="danger" icon="ShieldAlert">
-                필수
-              </Badge>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="동의 방식">
-                <Select
-                  value={method}
-                  onChange={v => setMethod(v as "구두" | "이메일" | "서면")}
-                  options={[
-                    { value: "구두", label: "구두" },
-                    { value: "이메일", label: "이메일" },
-                    { value: "서면", label: "서면" },
-                  ]}
-                />
-              </Field>
-              <Field label="동의일">
-                <Input type="date" value={date} onChange={e => setDate(e.target.value)} />
-              </Field>
-            </div>
-            <label className="flex items-start gap-2.5 mt-3 cursor-pointer">
-              <Checkbox
-                checked={agreed}
-                onCheckedChange={setAgreed}
-                className="mt-[1px]"
-              />
-              <span className="text-[12.5px] text-ink-2 leading-relaxed">
-                주관사로부터 <b>공고 게시에 대한 동의</b>를 받았으며, 그 근거를 보관하고 있습니다.
-              </span>
-            </label>
-          </div>
+          <label className="flex items-start gap-2.5 mt-3 cursor-pointer">
+            <Checkbox
+              checked={agreed}
+              onCheckedChange={setAgreed}
+              className="mt-[1px]"
+            />
+            <span className="text-[12.5px] text-ink-2 leading-relaxed">
+              주관사로부터 <b>공고 게시에 대한 동의</b>를 받았으며, 그 근거를 보관하고 있습니다.
+            </span>
+          </label>
         </div>
+      </div>
 
-        <Note tone="info" compact className="mt-4">
-          계약·정산 주체는 <b className="text-info-700">주관사</b>이며 Popup OS는 도구를 제공합니다.
-          주관사가 합류(claim)하면 공고 소유권이 이전되고 <b className="text-info-700">확인된 주관사</b>
-          로 표시돼요.
-        </Note>
+      <Note tone="info" compact className="mt-4">
+        계약·정산 주체는 <b className="text-info-700">주관사</b>이며 Popup OS는 도구를 제공합니다.
+        주관사가 합류(claim)하면 공고 소유권이 이전되고 <b className="text-info-700">확인된 주관사</b>
+        로 표시돼요.
+      </Note>
 
-        <div className="flex gap-2 mt-4">
-          <DrawerClose asChild>
-            <Button variant="outline" size="lg" block>
-              취소
-            </Button>
-          </DrawerClose>
-          <Button size="lg" block icon="Megaphone" disabled={!valid} loading={save.isPending} onClick={submit}>
-            공고 등록
-          </Button>
-        </div>
-      </DrawerContent>
-    </Drawer>
+    </Dialog>
   );
 }
 

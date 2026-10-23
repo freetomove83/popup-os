@@ -9,7 +9,7 @@ import { Note } from "@/components/ui/alert";
 import { Badge, Dot } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
-import { Drawer, DrawerContent } from "@/components/ui/drawer";
+import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Table } from "@/components/ui/table";
 import type { AttendanceView, DayStatus } from "@/data/admin";
@@ -43,27 +43,25 @@ function QrDrawer({ projectId, code, open, onOpenChange }: { projectId: string; 
     "새 코드로 바꿨어요 · 이전 코드는 더 이상 쓸 수 없어요",
   );
   return (
-    <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="left-1/2 right-auto -translate-x-1/2 w-full max-w-[420px] text-center">
-        <div className="text-[17px] font-extrabold text-ink">현장 출근 QR</div>
-        <p className="text-[12.5px] text-muted-foreground mt-1">
-          스태프는 앱의 <b className="text-ink-2">출근 체크인</b>에서 이 코드를 입력합니다.
-        </p>
-        <div className="mt-5 mx-auto w-fit rounded-[18px] border-2 border-brand bg-brand-50/40 px-7 py-5">
-          <div className="text-[44px] font-extrabold tracking-[0.18em] text-brand-700 tabular">{code}</div>
-        </div>
-        <Button
-          variant="outline"
-          size="lg"
-          icon="RefreshCw"
-          className="mt-5"
-          loading={rotate.isPending}
-          onClick={() => rotate.mutate()}
-        >
-          코드 새로 만들기
-        </Button>
-      </DrawerContent>
-    </Drawer>
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+      width={480}
+      title="현장 출근 QR"
+      description="스태프는 앱의 출근 체크인에서 이 코드를 입력합니다. 같은 코드를 다시 입력하면 퇴근으로 기록돼요."
+      footer={
+        <>
+          <Button variant="outline" icon="RefreshCw" loading={rotate.isPending} onClick={() => rotate.mutate()}>
+            코드 새로 만들기
+          </Button>
+          <Button onClick={() => onOpenChange(false)}>닫기</Button>
+        </>
+      }
+    >
+      <div className="mx-auto my-3 w-fit rounded-[18px] border-2 border-brand bg-brand-50/40 px-9 py-6">
+        <div className="text-[52px] font-extrabold tracking-[0.18em] text-brand-700 tabular">{code}</div>
+      </div>
+    </Dialog>
   );
 }
 

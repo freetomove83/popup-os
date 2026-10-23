@@ -7,7 +7,7 @@ import { Note } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
-import { Drawer, DrawerClose, DrawerContent } from "@/components/ui/drawer";
+import { Dialog } from "@/components/ui/dialog";
 import { Field, Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -19,22 +19,20 @@ import type { AdminNavKey } from "@/components/layout/admin-shell";
 import { api, useAction, useApi, won } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
-function DrawerFooter({ onSubmit, busy, disabled, label }: { onSubmit: () => void; busy: boolean; disabled: boolean; label: string }) {
+function ModalFooter({ onCancel, onSubmit, busy, disabled, label }: { onCancel: () => void; onSubmit: () => void; busy: boolean; disabled: boolean; label: string }) {
   return (
-    <div className="flex gap-2 mt-5">
-      <DrawerClose asChild>
-        <Button variant="outline" size="lg" block>
-          취소
-        </Button>
-      </DrawerClose>
-      <Button size="lg" block loading={busy} disabled={disabled} onClick={onSubmit}>
+    <>
+      <Button variant="outline" onClick={onCancel}>
+        취소
+      </Button>
+      <Button loading={busy} disabled={disabled} onClick={onSubmit}>
         {label}
       </Button>
-    </div>
+    </>
   );
 }
 
-function PositionDrawer({ projectId, open, onOpenChange }: { projectId: string; open: boolean; onOpenChange: (o: boolean) => void }) {
+function PositionDialog({ projectId, open, onOpenChange }: { projectId: string; open: boolean; onOpenChange: (o: boolean) => void }) {
   const [f, setF] = React.useState({ name: "", pay: "12000", headcount: "1", startTime: "10:00", endTime: "19:00", breakMinutes: "60" });
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => setF(p => ({ ...p, [k]: e.target.value }));
   const save = useAction(
@@ -48,40 +46,52 @@ function PositionDrawer({ projectId, open, onOpenChange }: { projectId: string; 
     },
   );
   return (
-    <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="left-1/2 right-auto -translate-x-1/2 w-full max-w-[480px]">
-        <div className="text-[17px] font-extrabold text-ink">포지션 추가</div>
-        <div className="space-y-3.5 mt-4">
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+      width={640}
+      title="포지션 추가"
+      description="역할·시급·인원·근무시간을 등록하면 워커 공고에 바로 노출돼요."
+      footer={
+        <ModalFooter
+          label="추가"
+          busy={save.isPending}
+          disabled={!f.name.trim()}
+          onCancel={() => onOpenChange(false)}
+          onSubmit={() => save.mutate()}
+        />
+      }
+    >
+      <div className="space-y-4">
+        <div className="grid grid-cols-[minmax(0,1fr)_140px_120px] gap-3">
           <Field label="역할">
             <Input value={f.name} onChange={set("name")} placeholder="예: 운영 스태프" />
           </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="시급 (원)" hint="2026 최저시급 10,030원 이상">
-              <Input type="number" inputMode="numeric" value={f.pay} onChange={set("pay")} />
-            </Field>
-            <Field label="모집 인원">
-              <Input type="number" inputMode="numeric" value={f.headcount} onChange={set("headcount")} />
-            </Field>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            <Field label="시작">
-              <Input type="time" value={f.startTime} onChange={set("startTime")} />
-            </Field>
-            <Field label="종료">
-              <Input type="time" value={f.endTime} onChange={set("endTime")} />
-            </Field>
-            <Field label="휴게 (분)">
-              <Input type="number" inputMode="numeric" value={f.breakMinutes} onChange={set("breakMinutes")} />
-            </Field>
-          </div>
+          <Field label="시급 (원)">
+            <Input type="number" inputMode="numeric" value={f.pay} onChange={set("pay")} />
+          </Field>
+          <Field label="모집 인원">
+            <Input type="number" inputMode="numeric" value={f.headcount} onChange={set("headcount")} />
+          </Field>
         </div>
-        <DrawerFooter label="추가" busy={save.isPending} disabled={!f.name.trim()} onSubmit={() => save.mutate()} />
-      </DrawerContent>
-    </Drawer>
+        <div className="grid grid-cols-3 gap-3">
+          <Field label="시작">
+            <Input type="time" value={f.startTime} onChange={set("startTime")} />
+          </Field>
+          <Field label="종료">
+            <Input type="time" value={f.endTime} onChange={set("endTime")} />
+          </Field>
+          <Field label="휴게 (분)">
+            <Input type="number" inputMode="numeric" value={f.breakMinutes} onChange={set("breakMinutes")} />
+          </Field>
+        </div>
+        <p className="text-caption text-muted-foreground">2026 최저시급 10,030원 이상만 등록할 수 있어요.</p>
+      </div>
+    </Dialog>
   );
 }
 
-function EditDrawer({ project, open, onOpenChange }: { project: ProjectDetail; open: boolean; onOpenChange: (o: boolean) => void }) {
+function EditDialog({ project, open, onOpenChange }: { project: ProjectDetail; open: boolean; onOpenChange: (o: boolean) => void }) {
   const init = () => ({
     title: project.title,
     venue: project.venue,
@@ -95,45 +105,64 @@ function EditDrawer({ project, open, onOpenChange }: { project: ProjectDetail; o
   React.useEffect(() => {
     if (open) setF(init());
   }, [open]);
-  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => setF(p => ({ ...p, [k]: e.target.value }));
+  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+    setF(p => ({ ...p, [k]: e.target.value }));
   const save = useAction(
     () => api(`/admin/projects/${project.id}`, { method: "PATCH", body: f }),
     () => onOpenChange(false),
   );
   return (
-    <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="left-1/2 right-auto -translate-x-1/2 w-full max-w-[520px] max-h-[88dvh] overflow-y-auto">
-        <div className="text-[17px] font-extrabold text-ink">프로젝트 수정</div>
-        <div className="space-y-3.5 mt-4">
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+      width={720}
+      title="프로젝트 수정"
+      description={`${project.brand} · ${project.organizer}`}
+      footer={
+        <ModalFooter
+          label="저장"
+          busy={save.isPending}
+          disabled={!f.title.trim()}
+          onCancel={() => onOpenChange(false)}
+          onSubmit={() => save.mutate()}
+        />
+      }
+    >
+      <div className="space-y-4">
+        <div className="grid grid-cols-[minmax(0,1fr)_200px] gap-3">
           <Field label="행사·공고 제목">
             <Input value={f.title} onChange={set("title")} />
           </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="근무지">
-              <Input icon="MapPin" value={f.venue} onChange={set("venue")} />
-            </Field>
-            <Field label="지역">
-              <Input value={f.area} onChange={set("area")} placeholder="서울 성동" />
-            </Field>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="시작일">
-              <Input type="date" value={f.startDate} onChange={set("startDate")} />
-            </Field>
-            <Field label="종료일">
-              <Input type="date" value={f.endDate} onChange={set("endDate")} />
-            </Field>
-          </div>
           <Field label="현장 담당">
-            <Input value={f.manager} onChange={set("manager")} />
-          </Field>
-          <Field label="업무 내용 (워커 공고에 노출)">
-            <Input value={f.description} onChange={set("description")} />
+            <Input icon="User" value={f.manager} onChange={set("manager")} />
           </Field>
         </div>
-        <DrawerFooter label="저장" busy={save.isPending} disabled={!f.title.trim()} onSubmit={() => save.mutate()} />
-      </DrawerContent>
-    </Drawer>
+        <div className="grid grid-cols-[minmax(0,1fr)_200px] gap-3">
+          <Field label="근무지">
+            <Input icon="MapPin" value={f.venue} onChange={set("venue")} />
+          </Field>
+          <Field label="지역">
+            <Input value={f.area} onChange={set("area")} placeholder="서울 성동" />
+          </Field>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="시작일">
+            <Input type="date" value={f.startDate} onChange={set("startDate")} />
+          </Field>
+          <Field label="종료일">
+            <Input type="date" value={f.endDate} onChange={set("endDate")} />
+          </Field>
+        </div>
+        <Field label="업무 내용" hint="워커 공고 상세에 그대로 노출돼요">
+          <textarea
+            value={f.description}
+            onChange={set("description")}
+            rows={4}
+            className="w-full rounded-lg border border-input bg-surface px-3 py-2.5 text-body text-ink outline-none resize-y focus:border-brand focus:ring-[3px] focus:ring-brand/20"
+          />
+        </Field>
+      </div>
+    </Dialog>
   );
 }
 
@@ -322,8 +351,8 @@ export function ProjectScreen({
           {posBody}
         </Card>
       </div>
-      {p && <PositionDrawer projectId={p.id} open={addOpen} onOpenChange={setAddOpen} />}
-      {p && <EditDrawer project={p} open={editOpen} onOpenChange={setEditOpen} />}
+      {p && <PositionDialog projectId={p.id} open={addOpen} onOpenChange={setAddOpen} />}
+      {p && <EditDialog project={p} open={editOpen} onOpenChange={setEditOpen} />}
     </AdminShell>
   );
 }
