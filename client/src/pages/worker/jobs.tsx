@@ -7,17 +7,10 @@ import { WorkerFrame, WorkerHeader } from "@/components/layout/worker-frame";
 import { Badge } from "@/components/ui/badge";
 import { FilterChip } from "@/components/ui/filter-chip";
 import { Input } from "@/components/ui/input";
-import type { JobPosting } from "@/data/jobs";
+import { payRanges, type JobPosting } from "@/data/jobs";
 import { useApi } from "@/lib/api";
 import { useScreenState } from "@/hooks/useScreenState";
 import { cn } from "@/lib/utils";
-
-function payRange(job: JobPosting) {
-  const pays = job.roles.map(r => r.pay);
-  const min = Math.min(...pays);
-  const max = Math.max(...pays);
-  return min === max ? `${min.toLocaleString()}원` : `${min.toLocaleString()}~${max.toLocaleString()}원`;
-}
 
 function StatusBadge({ job }: { job: JobPosting }) {
   if (job.status === "마감임박")
@@ -63,8 +56,13 @@ function JobCard({ job }: { job: JobPosting }) {
         </div>
         <div className="flex items-center justify-between mt-3.5 pt-3 border-t border-surface-3">
           <span className="text-[15px] font-extrabold text-ink tabular">
-            {payRange(job)}
-            <span className="text-[11px] font-semibold text-muted-foreground"> /시급</span>
+            {payRanges(job.roles).map((p, i) => (
+              <React.Fragment key={p.unit}>
+                {i > 0 && <span className="text-muted-foreground"> · </span>}
+                {p.range}
+                <span className="text-[11px] font-semibold text-muted-foreground"> /{p.unit}</span>
+              </React.Fragment>
+            ))}
           </span>
           <span className="text-[11.5px] text-muted-foreground inline-flex items-center gap-1">
             <Icon name="Users" size={12} />

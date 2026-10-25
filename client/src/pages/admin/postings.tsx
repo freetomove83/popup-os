@@ -13,6 +13,7 @@ import { Field, Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Table } from "@/components/ui/table";
 import { useScreenState } from "@/hooks/useScreenState";
+import { PAY_TYPE_OPTIONS } from "@/data/jobs";
 import type { AdminPosting, ClaimStatus, PostingStatus } from "@/data/postings";
 import { api, useAction, useApi } from "@/lib/api";
 
@@ -49,6 +50,8 @@ function NewPostingDrawer({
   const [role, setRole] = React.useState("");
   const [headcount, setHeadcount] = React.useState("");
   const [pay, setPay] = React.useState("");
+  const [payType, setPayType] = React.useState("hourly");
+  const [sourceText, setSourceText] = React.useState("");
   const [method, setMethod] = React.useState<"구두" | "이메일" | "서면">("구두");
   const [date, setDate] = React.useState(today);
   const [agreed, setAgreed] = React.useState(false);
@@ -67,6 +70,8 @@ function NewPostingDrawer({
     setRole("");
     setHeadcount("");
     setPay("");
+    setPayType("hourly");
+    setSourceText("");
     setMethod("구두");
     setDate(today);
     setAgreed(false);
@@ -88,6 +93,8 @@ function NewPostingDrawer({
           role: role.trim() || undefined,
           headcount: headcount ? Number(headcount) : undefined,
           pay: pay ? Number(pay) : undefined,
+          payType,
+          sourceText: sourceText.trim() || undefined,
         },
       }),
     () => {
@@ -99,6 +106,12 @@ function NewPostingDrawer({
     },
   );
   const submit = () => valid && save.mutate();
+
+  const dupPath =
+    startDate && endDate && (brand.trim() || venue.trim().length >= 2)
+      ? `/admin/postings/duplicates?${new URLSearchParams({ brand: brand.trim(), venue: venue.trim(), startDate, endDate })}`
+      : null;
+  const dups = useApi<{ id: string; brand: string; title: string; venue: string; period: string }[]>(open ? dupPath : null);
 
   return (
     <SubPage
@@ -119,6 +132,21 @@ function NewPostingDrawer({
       }
     >
       <div className="space-y-4">
+        <Field
+          label="원문 붙여넣기 (선택)"
+          hint="카톡 오픈채팅 등에 올라온 공고 원문을 붙여넣으면 공고와 함께 보관돼요. 아래 칸은 원문을 보며 채워 주세요."
+        >
+          {/* shortcut: 자동 채우기(AI 추출)는 아직 없다. Gemini/Claude API 연결 시 여기서 폼을 채운다. */}
+          <textarea
+            value={sourceText}
+            onChange={e => setSourceText(e.target.value)}
+            rows={sourceText ? 8 : 3}
+            maxLength={5000}
+            placeholder="공고 원문을 그대로 붙여넣기"
+            className="w-full rounded-lg border border-input bg-surface px-3 py-2.5 text-body text-ink outline-none resize-y focus:border-brand focus:ring-[3px] focus:ring-brand/20"
+          />
+        </Field>
+
         <div className="grid grid-cols-3 gap-3">
           <Field label="주관사·브랜드 (노출명)">
             <Input
@@ -172,7 +200,7 @@ function NewPostingDrawer({
           </Field>
         </div>
 
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-[minmax(0,1fr)_100px_110px_140px] gap-3">
           <Field label="역할">
             <Input
               value={role}
@@ -189,16 +217,32 @@ function NewPostingDrawer({
               placeholder="12"
             />
           </Field>
-          <Field label="시급 (원)">
+          <Field label="급여 유형">
+            <Select value={payType} onChange={setPayType} options={PAY_TYPE_OPTIONS} />
+          </Field>
+          <Field label="급여 (원)">
             <Input
               type="number"
               inputMode="numeric"
               value={pay}
               onChange={e => setPay(e.target.value)}
-              placeholder="12000"
+              placeholder={payType === "daily" ? "110000" : "12000"}
             />
           </Field>
         </div>
+
+        {!!dups.data?.length && (
+          <Note tone="warning" icon="CopyCheck" title="비슷한 공고가 이미 있어요">
+            기간이 겹치고 브랜드나 장소가 같은 공고예요. 같은 공고가 아닌지 확인해 주세요.
+            <ul className="mt-1.5 space-y-0.5">
+              {dups.data.map(d => (
+                <li key={d.id}>
+                  · <b>{d.brand}</b> {d.title} — {d.venue} ({d.period})
+                </li>
+              ))}
+            </ul>
+          </Note>
+        )}
 
         <div className="rounded-[14px] border border-line p-3.5">
           <div className="flex items-center gap-2 mb-3">

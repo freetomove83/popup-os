@@ -203,7 +203,7 @@ class WorkerController extends Controller
                     'title' => $p->title,
                     'role' => $a->position->name,
                     'dates' => $p->start_date->format('m.d').' ~ '.$p->end_date->format('m.d'),
-                    'pay' => number_format($a->position->pay).'원/시',
+                    'pay' => number_format($a->position->pay).($a->position->isDaily() ? '원/일' : '원/시'),
                     'status' => $status,
                     'action' => $action,
                 ];
@@ -224,9 +224,6 @@ class WorkerController extends Controller
     {
         $pos = $c->application->position;
         $p = $pos->project;
-        [$sh, $sm] = array_map('intval', explode(':', $pos->start_time));
-        [$eh, $em] = array_map('intval', explode(':', $pos->end_time));
-        $dailyMinutes = ($eh * 60 + $em) - ($sh * 60 + $sm) - $pos->break_minutes;
 
         return [
             'id' => $c->id,
@@ -237,7 +234,8 @@ class WorkerController extends Controller
             'period' => $p->start_date->format('Y.m.d').' ~ '.$p->end_date->format('m.d').' ('.((int) $p->start_date->diffInDays($p->end_date) + 1).'일)',
             'hours' => $pos->hours(),
             'pay' => $pos->pay,
-            'dailyPay' => (int) round($dailyMinutes * $pos->pay / 60),
+            'payType' => $pos->pay_type,
+            'dailyPay' => $pos->dailyPay(),
             'payday' => '근로종료 후 7일 이내',
             'state' => $c->state(),
             'signedAt' => $c->signed_at?->format('Y.m.d H:i'),
@@ -345,6 +343,7 @@ class WorkerController extends Controller
                 'days' => $s->days,
                 'minutes' => $s->minutes,
                 'pay' => $s->application->position->pay,
+                'payType' => $s->application->position->pay_type,
                 'base' => $s->base,
                 'extra' => $s->extra,
                 'tax' => $s->tax,

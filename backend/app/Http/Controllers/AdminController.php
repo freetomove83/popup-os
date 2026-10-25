@@ -163,6 +163,7 @@ class AdminController extends Controller
                 'name' => $r->name,
                 'hours' => $r->hours(),
                 'pay' => $r->pay,
+                'payType' => $r->pay_type,
                 'headcount' => $r->headcount,
                 'filled' => $r->approved_count,
                 'applicants' => $r->applicants_count,
@@ -189,6 +190,8 @@ class AdminController extends Controller
             'role' => 'nullable|string|max:40',
             'headcount' => 'nullable|integer|min:1|max:500',
             'pay' => 'nullable|integer|min:10030|max:1000000', // 2026 최저시급 이상
+            'payType' => ['nullable', Rule::in(['hourly', 'daily'])],
+            'sourceText' => 'nullable|string|max:5000',
         ]);
         if ($d['postedBy'] === 'operator' && empty($d['consent']['agreed'])) {
             throw ValidationException::withMessages(['consent.agreed' => '주관사 동의 없이는 대행 등록할 수 없어요.']);
@@ -206,6 +209,7 @@ class AdminController extends Controller
                 'start_date' => $d['startDate'],
                 'end_date' => $d['endDate'],
                 'description' => $d['description'] ?? null,
+                'source_text' => $d['sourceText'] ?? null,
                 'posted_by' => $d['postedBy'],
                 'claim_status' => $operator ? 'unclaimed' : 'claimed',
                 'consent_agreed' => (bool) ($d['consent']['agreed'] ?? false),
@@ -218,6 +222,7 @@ class AdminController extends Controller
                     'name' => $d['role'],
                     'headcount' => $d['headcount'] ?? 1,
                     'pay' => $d['pay'] ?? 10030,
+                    'pay_type' => $d['payType'] ?? 'hourly',
                 ]);
             }
 
@@ -225,6 +230,32 @@ class AdminController extends Controller
         });
 
         return response(Present::posting(self::load($project)), 201);
+    }
+
+    /** 대행 등록 전 중복 의심 공고 — 기간이 겹치고 브랜드가 같거나 장소가 비슷한 것. */
+    public function duplicates(Request $request)
+    {
+        $d = $request->validate([
+            'brand' => 'nullable|string|max:60',
+            'venue' => 'nullable|string|max:80',
+            'startDate' => 'required|date',
+            'endDate' => 'required|date',
+        ]);
+        $brand = trim($d['brand'] ?? '');
+        $venue = trim($d['venue'] ?? '');
+        $byVenue = mb_strlen($venue) >= 2 && $venue !== '미정';
+        if ($brand === '' && ! $byVenue) {
+            return [];
+        }
+
+        return Project::whereDate('start_date', '<=', $d['endDate'])
+            ->whereDate('end_date', '>=', $d['startDate'])
+            ->where(fn ($q) => $q
+                ->when($brand !== '', fn ($q) => $q->orWhere('brand', $brand))
+                ->when($byVenue, fn ($q) => $q->orWhere('venue', 'like', '%'.$venue.'%')))
+            ->limit(5)
+            ->get()
+            ->map(fn (Project $p) => ['id' => (string) $p->id, 'brand' => $p->brand, 'title' => $p->title, 'venue' => $p->venue, 'period' => Present::period($p)]);
     }
 
     public function updateProject(Request $request, Project $project)
@@ -252,6 +283,7 @@ class AdminController extends Controller
         $d = $request->validate([
             'name' => 'required|string|max:40',
             'pay' => 'required|integer|min:10030|max:1000000',
+            'payType' => ['nullable', Rule::in(['hourly', 'daily'])],
             'headcount' => 'required|integer|min:1|max:500',
             'startTime' => 'required|date_format:H:i',
             'endTime' => 'required|date_format:H:i|after:startTime',
@@ -260,6 +292,7 @@ class AdminController extends Controller
         $project->positions()->create([
             'name' => $d['name'],
             'pay' => $d['pay'],
+            'pay_type' => $d['payType'] ?? 'hourly',
             'headcount' => $d['headcount'],
             'start_time' => $d['startTime'],
             'end_time' => $d['endTime'],

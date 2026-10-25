@@ -110,7 +110,12 @@ export function StaffContractScreen() {
     ["업무내용", c.role],
     ["소정근로일", c.period],
     ["근로시간", c.hours],
-    ["임금", <span className="tabular">시급 {won(c.pay)}원 · 일급 {won(c.dailyPay)}원</span>],
+    [
+      "임금",
+      <span className="tabular">
+        {c.payType === "daily" ? `일급 ${won(c.pay)}원` : `시급 ${won(c.pay)}원 · 일급 ${won(c.dailyPay)}원`}
+      </span>,
+    ],
     ["임금 지급일", c.payday],
   ];
 

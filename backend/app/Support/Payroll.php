@@ -40,7 +40,7 @@ class Payroll
                 $minutes += $m;
             }
         }
-        $base = (int) round($minutes * $pos->pay / 60);
+        $base = $pos->isDaily() ? $days * $pos->pay : (int) round($minutes * $pos->pay / 60);
         $tax = (int) (floor($base * self::TAX_RATE / 10) * 10);
 
         return ['days' => $days, 'minutes' => $minutes, 'base' => $base, 'extra' => 0, 'tax' => $tax, 'net' => $base - $tax];

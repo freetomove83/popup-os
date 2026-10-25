@@ -21,6 +21,7 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'abilities:admin'])->control
     Route::get('/dashboard', 'dashboard');
     Route::get('/projects', 'projects');
     Route::post('/projects', 'createProject');
+    Route::get('/postings/duplicates', 'duplicates');
     Route::get('/projects/{project}', 'project');
     Route::patch('/projects/{project}', 'updateProject');
     Route::post('/projects/{project}/positions', 'addPosition');

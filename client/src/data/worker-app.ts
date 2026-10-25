@@ -1,3 +1,4 @@
+import type { PayType } from "@/data/jobs";
 import type { WorkRecord, WorkerStat } from "@/data/workers";
 
 /** 워커 앱 API 응답 타입 — backend/app/Http/Controllers/WorkerController.php 와 짝 */
@@ -45,6 +46,7 @@ export interface ContractDoc {
   period: string;
   hours: string;
   pay: number;
+  payType: PayType;
   dailyPay: number;
   payday: string;
   state: "pending" | "expiring" | "expired" | "signed";

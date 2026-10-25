@@ -9,8 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Field, Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
+import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { ProjectDetail } from "@/data/admin";
+import { PAY_TYPE_OPTIONS, PAY_UNIT } from "@/data/jobs";
 import { ProjectPicker, useAdminProject } from "@/hooks/useAdminProject";
 import { useIsNarrow } from "@/hooks/useMediaQuery";
 import { useScreenState } from "@/hooks/useScreenState";
@@ -32,7 +34,7 @@ function ModalFooter({ onCancel, onSubmit, busy, disabled, label }: { onCancel: 
 }
 
 function PositionDialog({ projectId, open, onOpenChange }: { projectId: string; open: boolean; onOpenChange: (o: boolean) => void }) {
-  const [f, setF] = React.useState({ name: "", pay: "12000", headcount: "1", startTime: "10:00", endTime: "19:00", breakMinutes: "60" });
+  const [f, setF] = React.useState({ name: "", payType: "hourly", pay: "12000", headcount: "1", startTime: "10:00", endTime: "19:00", breakMinutes: "60" });
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => setF(p => ({ ...p, [k]: e.target.value }));
   const save = useAction(
     () =>
@@ -50,7 +52,7 @@ function PositionDialog({ projectId, open, onOpenChange }: { projectId: string; 
       onOpenChange={onOpenChange}
       crumb={["운영", "프로젝트·포지션"]}
       title="포지션 추가"
-      description="역할·시급·인원·근무시간을 등록하면 워커 공고에 바로 노출돼요."
+      description="역할·급여·인원·근무시간을 등록하면 워커 공고에 바로 노출돼요."
       footer={
         <ModalFooter
           label="추가"
@@ -62,11 +64,14 @@ function PositionDialog({ projectId, open, onOpenChange }: { projectId: string; 
       }
     >
       <div className="space-y-4">
-        <div className="grid grid-cols-[minmax(0,1fr)_140px_120px] gap-3">
+        <div className="grid grid-cols-[minmax(0,1fr)_110px_140px_110px] gap-3">
           <Field label="역할">
             <Input value={f.name} onChange={set("name")} placeholder="예: 운영 스태프" />
           </Field>
-          <Field label="시급 (원)">
+          <Field label="급여 유형">
+            <Select value={f.payType} onChange={v => setF(p => ({ ...p, payType: v }))} options={PAY_TYPE_OPTIONS} />
+          </Field>
+          <Field label="급여 (원)">
             <Input type="number" inputMode="numeric" value={f.pay} onChange={set("pay")} />
           </Field>
           <Field label="모집 인원">
@@ -84,7 +89,9 @@ function PositionDialog({ projectId, open, onOpenChange }: { projectId: string; 
             <Input type="number" inputMode="numeric" value={f.breakMinutes} onChange={set("breakMinutes")} />
           </Field>
         </div>
-        <p className="text-caption text-muted-foreground">2026 최저시급 10,030원 이상만 등록할 수 있어요.</p>
+        <p className="text-caption text-muted-foreground">
+          시급은 2026 최저시급 10,030원 이상만 등록할 수 있어요. 일급은 출근한 날 수만큼 지급돼요.
+        </p>
       </div>
     </SubPage>
   );
@@ -213,7 +220,7 @@ export function ProjectScreen({
         >
           <span>역할</span>
           <span className="text-right">모집</span>
-          <span className="text-right">시급</span>
+          <span className="text-right">급여</span>
           <span>충원</span>
           <span>상태</span>
         </div>
@@ -240,6 +247,7 @@ export function ProjectScreen({
             <div className="text-right tabular">
               <span className="text-caption text-muted-foreground">₩</span>
               <b className="text-[14px]">{won(r.pay)}</b>
+              <div className="text-caption text-muted-foreground">{PAY_UNIT[r.payType]}</div>
             </div>
             <div>
               <Progress value={(r.filled / r.headcount) * 100} tone={r.filled >= r.headcount ? "success" : "brand"} />

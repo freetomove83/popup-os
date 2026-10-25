@@ -10,7 +10,7 @@ import { Note } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import type { JobPosting } from "@/data/jobs";
+import { payRanges, type JobPosting } from "@/data/jobs";
 import { api, session, useAction, useApi } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -72,10 +72,7 @@ export default function WorkerJobDetail() {
     }
     apply.mutate(role.id);
   };
-  const payRange = (() => {
-    const p = job.roles.map(r => r.pay);
-    return `${Math.min(...p).toLocaleString()}~${Math.max(...p).toLocaleString()}원`;
-  })();
+  const payRange = payRanges(job.roles).map(p => `${p.unit} ${p.range}`).join(" · ") || "—";
 
   return (
     <WorkerFrame>
@@ -119,7 +116,7 @@ export default function WorkerJobDetail() {
                 ["주관사", job.organizer],
                 ["근무 장소", job.venue],
                 ["근무 기간", `${job.startDate} ~ ${job.endDate}`],
-                ["시급", <span className="tabular">{payRange}</span>],
+                ["급여", <span className="tabular">{payRange}</span>],
                 ["모집 인원", `${job.roles.reduce((a, r) => a + r.headcount, 0)}명`],
               ]}
             />
@@ -159,7 +156,7 @@ export default function WorkerJobDetail() {
                         {r.pay.toLocaleString()}
                         <span className="text-[11px] font-semibold text-muted-foreground">
                           {" "}
-                          원/시
+                          {r.payType === "daily" ? "원/일" : "원/시"}
                         </span>
                       </div>
                       {full ? (

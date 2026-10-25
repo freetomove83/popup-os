@@ -164,6 +164,7 @@ class Present
                 'id' => $r->id,
                 'name' => $r->name,
                 'pay' => $r->pay,
+                'payType' => $r->pay_type,
                 'hours' => $r->hours(),
                 'headcount' => $r->headcount,
                 'filled' => $r->approved_count ?? 0,

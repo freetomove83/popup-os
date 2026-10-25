@@ -1,3 +1,4 @@
+import type { PayType } from "@/data/jobs";
 import type { AdminPosting } from "@/data/postings";
 import type { Worker } from "@/data/workers";
 
@@ -26,6 +27,7 @@ export interface ProjectDetail {
     name: string;
     hours: string;
     pay: number;
+    payType: PayType;
     headcount: number;
     filled: number;
     applicants: number;
