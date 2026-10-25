@@ -50,9 +50,9 @@ export default function WorkerLogin() {
   };
 
   return (
-    <div className="min-h-dvh bg-background flex justify-center sm:py-8">
-      <div className="w-full max-w-[430px] bg-surface flex flex-col h-dvh sm:h-[844px] sm:rounded-[33px] sm:shadow-overlay sm:border sm:border-line overflow-hidden">
-        <div className="flex-1 overflow-auto px-6 pt-14">
+    <div className="min-h-dvh bg-surface md:bg-background flex justify-center md:items-center md:py-10">
+      <div className="w-full max-w-[460px] bg-surface flex flex-col h-dvh md:h-auto md:rounded-[20px] md:shadow-soft md:border md:border-line overflow-hidden">
+        <div className="flex-1 overflow-auto px-6 pt-14 md:px-9 md:pt-10 md:pb-9">
           <div className="flex items-center gap-2.5 mb-8">
             <Mark size={40} />
             <Wordmark size={22} />

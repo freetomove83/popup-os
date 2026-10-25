@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Link, useLocation } from "wouter";
 
-import { Mark } from "@/components/brand";
+import { Mark, Wordmark } from "@/components/brand";
 import { Icon } from "@/components/icon";
 import { cn } from "@/lib/utils";
 
@@ -12,13 +12,43 @@ const TABS = [
   { href: "/worker/settle", label: "정산", icon: "Wallet" },
 ];
 
+const isActive = (loc: string, href: string) => (href === "/worker" ? loc === "/worker" : loc.startsWith(href));
+
+/** 웹(md 이상) 상단 메뉴 — 모바일에서는 하단 탭바를 쓴다. */
+function WorkerTopNav() {
+  const [loc] = useLocation();
+  return (
+    <header className="hidden md:flex shrink-0 h-16 items-center gap-8 px-8 border-b border-line bg-surface">
+      <Link href="/worker" className="flex items-center gap-2">
+        <Mark size={28} />
+        <Wordmark size={17} />
+      </Link>
+      <nav className="flex items-center gap-1" aria-label="스태프 메뉴">
+        {TABS.map(t => (
+          <Link
+            key={t.href}
+            href={t.href}
+            aria-current={isActive(loc, t.href) ? "page" : undefined}
+            className={cn(
+              "inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg text-[14px] font-semibold transition-colors",
+              isActive(loc, t.href) ? "bg-brand-50 text-brand-700" : "text-ink-3 hover:bg-surface-2",
+            )}
+          >
+            <Icon name={t.icon} size={17} />
+            {t.label}
+          </Link>
+        ))}
+      </nav>
+    </header>
+  );
+}
+
 function WorkerTabBar() {
   const [loc] = useLocation();
   return (
-    <nav className="shrink-0 border-t border-line bg-surface flex" aria-label="스태프 탭">
+    <nav className="md:hidden shrink-0 border-t border-line bg-surface flex" aria-label="스태프 탭">
       {TABS.map(t => {
-        const active =
-          t.href === "/worker" ? loc === "/worker" : loc.startsWith(t.href);
+        const active = isActive(loc, t.href);
         return (
           <Link
             key={t.href}
@@ -37,14 +67,17 @@ function WorkerTabBar() {
   );
 }
 
-/** 스태프(워커) 앱 셸 — 모바일에서는 전체 화면, 데스크톱에서는 폰 프레임. */
+/** 스태프(워커) 앱 셸 — 모바일은 전체 화면 + 하단 탭, 웹(md 이상)은 상단 메뉴 + 가운데 본문 패널. */
 export function WorkerFrame({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-dvh bg-background flex justify-center overflow-x-hidden sm:py-8">
-      <div className="w-full max-w-[430px] min-w-0 bg-surface flex flex-col h-dvh sm:h-[844px] sm:rounded-[33px] sm:shadow-overlay sm:border sm:border-line overflow-hidden">
-        <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden">{children}</div>
-        <WorkerTabBar />
+    <div className="h-dvh flex flex-col bg-surface md:bg-background overflow-hidden">
+      <WorkerTopNav />
+      <div className="flex-1 min-h-0 md:p-6">
+        <div className="h-full w-full md:max-w-[880px] mx-auto bg-surface md:rounded-[20px] md:border md:border-line md:shadow-soft overflow-y-auto overflow-x-hidden">
+          {children}
+        </div>
       </div>
+      <WorkerTabBar />
     </div>
   );
 }

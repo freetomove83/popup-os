@@ -8,6 +8,7 @@ import Home from "@/pages/Home";
 import Landing from "@/pages/landing/Landing";
 import NotFound from "@/pages/NotFound";
 import StaffDemo from "@/pages/StaffDemo";
+import { WorkerFrame } from "@/components/layout/worker-frame";
 import { StaffCheckinScreen } from "@/pages/staff/checkin";
 import { StaffContractScreen } from "@/pages/staff/contract";
 import WorkerApplications from "@/pages/worker/applications";
@@ -35,8 +36,16 @@ function Router() {
       <Route path="/worker/applications" component={WorkerApplications} />
       <Route path="/worker/profile" component={WorkerProfile} />
       <Route path="/worker/settle" component={WorkerSettle} />
-      <Route path="/worker/contract" component={StaffContractScreen} />
-      <Route path="/worker/checkin" component={StaffCheckinScreen} />
+      <Route path="/worker/contract">
+        <WorkerFrame>
+          <StaffContractScreen />
+        </WorkerFrame>
+      </Route>
+      <Route path="/worker/checkin">
+        <WorkerFrame>
+          <StaffCheckinScreen />
+        </WorkerFrame>
+      </Route>
       <Route path="/worker" component={WorkerJobs} />
 
       {/* 디자인 레퍼런스(3화면 데모) */}

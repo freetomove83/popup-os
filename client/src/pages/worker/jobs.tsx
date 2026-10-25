@@ -134,7 +134,7 @@ export default function WorkerJobs() {
           ))}
         </div>
 
-        <div className="mt-4 space-y-3">
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
           {state === "loading" ? (
             [0, 1, 2].map(i => (
               <div key={i} className="h-[168px] rounded-card bg-surface-3 animate-pulse" />
@@ -144,12 +144,14 @@ export default function WorkerJobs() {
               icon="CloudOff"
               title="공고를 불러오지 못했어요"
               desc="잠시 후 다시 시도해 주세요."
+              className="md:col-span-2"
             />
           ) : state === "empty" || list.length === 0 ? (
             <EmptyState
               icon="SearchX"
               title="조건에 맞는 공고가 없어요"
               desc="필터를 줄이거나 검색어를 바꿔 보세요."
+              className="md:col-span-2"
             />
           ) : (
             list.map(j => <JobCard key={j.id} job={j} />)

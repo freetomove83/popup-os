@@ -3,6 +3,9 @@ import * as React from "react";
 import { Mark } from "@/components/brand";
 import { Icon } from "@/components/icon";
 
+// 가짜 상태바(9:41)는 데모 기기 프레임 안에서만 보인다.
+const InPhoneFrame = React.createContext(false);
+
 export function PhoneShell({
   eyebrow,
   title,
@@ -14,9 +17,10 @@ export function PhoneShell({
   children: React.ReactNode;
   footer?: React.ReactNode;
 }) {
+  const framed = React.useContext(InPhoneFrame);
   return (
     <div className="bg-surface flex flex-col overflow-hidden w-full h-full">
-      <div className="flex justify-between items-center px-6 h-[44px] text-[13px] font-bold text-ink-2 tabular shrink-0">
+      <div className={framed ? "flex justify-between items-center px-6 h-[44px] text-[13px] font-bold text-ink-2 tabular shrink-0" : "hidden"}>
         <span>9:41</span>
         <span className="flex items-center gap-1.5 text-ink-2">
           <Icon name="Signal" size={15} />
@@ -24,7 +28,7 @@ export function PhoneShell({
           <Icon name="BatteryFull" size={18} />
         </span>
       </div>
-      <header className="px-5 pt-1 pb-3.5 border-b border-line shrink-0">
+      <header className={framed ? "px-5 pt-1 pb-3.5 border-b border-line shrink-0" : "px-5 pt-3 pb-3.5 border-b border-line shrink-0"}>
         <div className="flex items-center gap-1.5">
           <Mark size={18} variant="b" />
           <span className="text-[11.5px] font-bold text-muted-foreground tracking-[0.04em]">
@@ -52,7 +56,7 @@ export function PhoneFrame({ children }: { children: React.ReactNode }) {
       <div className="relative">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[110px] h-[24px] bg-ink rounded-b-[16px] z-[5]" />
         <div className="w-[390px] h-[844px] rounded-[33px] overflow-hidden bg-surface">
-          {children}
+          <InPhoneFrame.Provider value>{children}</InPhoneFrame.Provider>
         </div>
       </div>
     </div>
