@@ -3,13 +3,12 @@ import { toast } from "sonner";
 
 import { EmptyState, ErrorState } from "@/components/feedback";
 import { KpiRow } from "@/components/kpi-row";
-import { AdminShell, PageHeader, type AdminNavKey } from "@/components/layout/admin-shell";
+import { AdminShell, PageHeader, SubPage, type AdminNavKey } from "@/components/layout/admin-shell";
 import { Note } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Dialog } from "@/components/ui/dialog";
 import { Field, Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Table } from "@/components/ui/table";
@@ -102,10 +101,10 @@ function NewPostingDrawer({
   const submit = () => valid && save.mutate();
 
   return (
-    <Dialog
+    <SubPage
       open={open}
       onOpenChange={onOpenChange}
-      width={760}
+      crumb={["운영", "공고 등록"]}
       title="대행 등록 — 새 공고"
       description="주관사 동의를 받은 공고를 더블엠이 대신 등록합니다."
       footer={
@@ -243,7 +242,7 @@ function NewPostingDrawer({
         로 표시돼요.
       </Note>
 
-    </Dialog>
+    </SubPage>
   );
 }
 

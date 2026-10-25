@@ -1,4 +1,5 @@
 import * as React from "react";
+import { createPortal } from "react-dom";
 
 import { Mark, Wordmark } from "@/components/brand";
 import { Icon } from "@/components/icon";
@@ -182,6 +183,8 @@ export function PageHeader({
   );
 }
 
+const SubPageSlot = React.createContext<{ el: HTMLElement | null; setOpen: (o: boolean) => void } | null>(null);
+
 export function AdminShell({
   active,
   onNavigate,
@@ -192,17 +195,89 @@ export function AdminShell({
   children: React.ReactNode;
 }) {
   const rail = useIsNarrow();
+  const mainRef = React.useRef<HTMLElement>(null);
+  const [slot, setSlot] = React.useState<HTMLDivElement | null>(null);
+  const [sub, setSub] = React.useState(false);
+  const ctx = React.useMemo(() => ({ el: slot, setOpen: setSub }), [slot]);
+
+  React.useEffect(() => {
+    mainRef.current?.scrollTo({ top: 0 });
+  }, [sub]);
+
   return (
     <div className="flex h-dvh bg-background overflow-hidden">
       <Sidebar active={active} rail={rail} onNavigate={onNavigate} />
       <main
+        ref={mainRef}
         className={cn(
           "flex-1 min-w-0 overflow-auto",
           rail ? "px-6 py-[22px]" : "px-7 py-6",
         )}
       >
-        {children}
+        {/* 하위 화면이 열리면 목록은 숨기기만 한다(필터·선택 상태 유지) */}
+        <SubPageSlot.Provider value={ctx}>
+          <div hidden={sub}>{children}</div>
+        </SubPageSlot.Provider>
+        <div ref={setSlot} />
       </main>
     </div>
+  );
+}
+
+/**
+ * 등록·수정 폼을 레이어 대신 본문 한 단계 아래 화면으로 연다. 사이드바는 그대로 두고
+ * 현재 화면 내용을 이 화면으로 바꿔 끼운다. AdminShell 안에서만 쓴다.
+ */
+export function SubPage({
+  open,
+  onOpenChange,
+  crumb,
+  title,
+  description,
+  footer,
+  width = 760,
+  children,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  crumb: string[];
+  title: string;
+  description?: React.ReactNode;
+  footer?: React.ReactNode;
+  width?: number;
+  children: React.ReactNode;
+}) {
+  const ctx = React.useContext(SubPageSlot);
+  const setOpen = ctx?.setOpen;
+  React.useEffect(() => {
+    if (!open || !setOpen) return;
+    setOpen(true);
+    return () => setOpen(false);
+  }, [open, setOpen]);
+
+  if (!open || !ctx?.el) return null;
+  return createPortal(
+    <div style={{ maxWidth: width }}>
+      <div className="flex items-end gap-3 mb-5">
+        <button
+          type="button"
+          aria-label="이전 화면으로"
+          onClick={() => onOpenChange(false)}
+          className="grid place-items-center w-9 h-9 mb-0.5 rounded-lg border border-line bg-surface text-ink-3 hover:bg-surface-2 shrink-0"
+        >
+          <Icon name="ArrowLeft" size={18} />
+        </button>
+        <div className="flex-1 min-w-0 [&>div]:mb-0">
+          <PageHeader crumb={[...crumb, title]} title={title} meta={description && <p className="text-[13px] text-muted-foreground">{description}</p>} />
+        </div>
+      </div>
+      <div className="bg-card text-card-foreground rounded-card border border-line shadow-soft overflow-hidden">
+        <div className="px-6 py-5">{children}</div>
+        {footer && (
+          <div className="flex justify-end gap-2 px-6 py-4 border-t border-line bg-surface-2/60">{footer}</div>
+        )}
+      </div>
+    </div>,
+    ctx.el,
   );
 }

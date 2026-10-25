@@ -2,12 +2,11 @@ import * as React from "react";
 
 import { EmptyState, ErrorState } from "@/components/feedback";
 import { KV } from "@/components/kv";
-import { AdminShell, PageHeader } from "@/components/layout/admin-shell";
+import { AdminShell, PageHeader, SubPage } from "@/components/layout/admin-shell";
 import { Note } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
-import { Dialog } from "@/components/ui/dialog";
 import { Field, Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -46,10 +45,10 @@ function PositionDialog({ projectId, open, onOpenChange }: { projectId: string; 
     },
   );
   return (
-    <Dialog
+    <SubPage
       open={open}
       onOpenChange={onOpenChange}
-      width={640}
+      crumb={["운영", "프로젝트·포지션"]}
       title="포지션 추가"
       description="역할·시급·인원·근무시간을 등록하면 워커 공고에 바로 노출돼요."
       footer={
@@ -87,7 +86,7 @@ function PositionDialog({ projectId, open, onOpenChange }: { projectId: string; 
         </div>
         <p className="text-caption text-muted-foreground">2026 최저시급 10,030원 이상만 등록할 수 있어요.</p>
       </div>
-    </Dialog>
+    </SubPage>
   );
 }
 
@@ -112,10 +111,10 @@ function EditDialog({ project, open, onOpenChange }: { project: ProjectDetail; o
     () => onOpenChange(false),
   );
   return (
-    <Dialog
+    <SubPage
       open={open}
       onOpenChange={onOpenChange}
-      width={720}
+      crumb={["운영", "프로젝트·포지션"]}
       title="프로젝트 수정"
       description={`${project.brand} · ${project.organizer}`}
       footer={
@@ -162,7 +161,7 @@ function EditDialog({ project, open, onOpenChange }: { project: ProjectDetail; o
           />
         </Field>
       </div>
-    </Dialog>
+    </SubPage>
   );
 }
 
